@@ -1,0 +1,16 @@
+{
+  "datasets": [
+    {
+      "name": "titanic",
+      "kaggle": "heptapod/titanic",
+      "target_dir": "titanic",
+      "description": "Passenger survival data for binary classification exercises."
+    },
+    {
+      "name": "wine_reviews",
+      "kaggle": "zynicide/wine-reviews",
+      "target_dir": "wine_reviews",
+      "description": "Wine review scores with text and categorical attributes."
+    }
+  ]
+}

@@ -2,9 +2,7 @@ The University of Melbourne
 
 COMP90049, Introduction to Machine Learning, Semester 2, 2025
 
-Assignment 2 - Group Contract
-
-Contract due: Monday, September 24th
+Assignment 2
 
 ---
 
