@@ -41,12 +41,12 @@ Outline the methods and strategies you are going to use to complete the assignme
 
 ## Roles and Responsibilities
 
-| Member Name | Role and Responsibilities |
-|---|---|
-| **Zivanka Nafisa Wongkaren** | Research question 1; **Report** |
-| **Kim Donguk** | Research question 2 |
-| **Zhijing Qiu** | Research question 3 |
-| **Jun Xu** | Research question 4; **ML MODEL:** Model Selection / Model Coding / Model Training; **DATA:** Find Topic / Find Dataset / Find appropriate research questions; **REPORT:** Report writing / Report formatting |
+| Member Name | Research Question | Additional Responsibilities |
+|---|---|---|
+| **Zivanka Nafisa Wongkaren** | Research question 1 | **REPORT:** Report writing / Report formatting |
+| **Kim Donguk** | Research question 2 | **REPORT:** Report writing / Report formatting |
+| **Zhijing Qiu** | Research question 3 | **DATA:** Find Topic / Find Dataset / Find appropriate research questions |
+| **Jun Xu** | Research question 4 |**ML MODEL:** Model Selection / Model Coding / Model Training  |
 
 ---
 
