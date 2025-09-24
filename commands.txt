@@ -1,0 +1,5 @@
+git pull
+git push
+
+conda env export --from-history > environment.yml
+conda env update -f environment.yml --prune
