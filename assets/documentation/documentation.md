@@ -1,0 +1,243 @@
+# ML Code Repository Documentation
+
+This guide explains how to set up the environment, understand the code structure, and run experiments in this repository. It is written for developers who are new to the project and need a detailed walkthrough.
+
+---
+
+## 1. Project Overview
+
+The repository contains coursework for COMP90049 (Introduction to Machine Learning) Assignment 2. The team is researching financial market prediction and related risk assessment tasks. Code and data helpers are organised so that preprocessing, models, and experiments can be configured via `assets/config.json` and re-used across notebooks or scripts.
+
+---
+
+## 2. Repository Layout (High Level)
+
+- `assets/`
+  - `config.json` – central configuration for preprocessing, model registry, and experiments (e.g. ablation settings for Question 1).
+  - `dataset_link.json` – metadata describing Kaggle datasets used in the assignment.
+  - `datasets/` – storage for downloaded datasets; for the stock market assignment the working files live under `assets/datasets/stock_market/`.
+  - `documentation/` – project documentation (this file).
+- `data_processings/`
+  - Configuration-aware preprocessing utilities (missing value handling, scaling, rolling features, feature engineering, dataset loaders, orchestration pipeline).
+- `models/`
+  - Model registry that instantiates scikit-learn estimators defined in `assets/config.json`.
+- `scripts/`
+  - `download_datasets.py` – Kaggle-based dataset downloader using `assets/dataset_link.json`.
+  - `q1.ipynb` – automated ablation notebook for stock price movement prediction.
+- `commands.txt` – frequently used Git/Conda commands.
+- `environment.yml` – minimal Conda environment specification.
+
+---
+
+## 3. Environment Setup
+
+1. **Install Conda (Miniconda/Anaconda)** if it is not already available.
+2. **Create the project environment**:
+   ```bash
+   conda env create -f environment.yml
+   ```
+3. **Activate the environment**:
+   ```bash
+   conda activate ML
+   ```
+4. **(Optional) Install additional packages** required for new experiments. Update `environment.yml` so that other developers can reproduce the environment.
+
+> The environment installs Python 3.12, pandas, scikit-learn, matplotlib, tqdm, jupyter, and the Kaggle CLI, which are sufficient for the current workflows.
+
+---
+
+## 4. Data Management
+
+### 4.1 Downloading Datasets
+
+1. Place your Kaggle API token (`kaggle.json`) in `~/.kaggle/` and ensure the file has permission `600`.
+2. Run the downloader from the repository root:
+   ```bash
+   python scripts/download_datasets.py
+   ```
+   - Without arguments the script downloads all datasets listed in `assets/dataset_link.json`.
+   - Pass dataset names (matching the `name` field) to download specific datasets, e.g.:
+     ```bash
+     python scripts/download_datasets.py stock_market credit_card_fraud
+     ```
+3. The files will be stored under `assets/datasets/<target_dir>`. A `.gitkeep` file keeps the directory in version control; actual datasets should not be committed.
+
+### 4.2 Auxiliary Data
+
+- Stock price histories are in `assets/datasets/stock_market/Data/Stocks/*.txt`. The loader automatically searches that directory (and matching ETF folders) based on the tickers configured in `assets/config.json`.
+- If you add genuine sentiment or macro datasets later, declare the paths in `assets/config.json` and implement a matching feature-step. The current configuration derives sentiment/macro proxies directly from price/volume data, so no external CSVs are required.
+
+---
+
+## 5. Configuration (`assets/config.json`)
+
+The configuration file drives preprocessing, model instantiation, and experiment definitions. Its top-level keys are:
+
+- `missing_value_presets`: Named imputation strategies for each dataset.
+- `preprocessing`: Dataset-specific pipelines (scaling options, rolling windows, feature sets, target definitions, ablation combinations).
+- `models`: Registry of ML estimators (module path, class name, parameters).
+- `experiments`: Metadata that links datasets, models, metrics, and feature-set ablations.
+
+### 5.1 Missing Value Presets
+
+Each preset controls how numeric, categorical, and datetime columns are imputed. Example (`stock_market`):
+```json
+"stock_market": {
+  "numeric_strategy": "ffill",
+  "categorical_strategy": "ffill",
+  "datetime_strategy": "ffill",
+  "drop_rows_threshold": 0.9,
+  "indicator": true
+}
+```
+Supported strategies include `mean`, `median`, `zero`, `constant`, `ffill`, `bfill`, and `interpolate`. Indicators (`*_was_missing`) can be added for imputed values.
+
+### 5.2 Preprocessing Pipelines
+
+A dataset entry (e.g. `preprocessing.stock_market`) can specify:
+
+- `missing_values_preset`: Name of the preset to use.
+- `scaling`: Strategy (`standard` or `minmax`), optional columns, optional `groupby` (per-ticker scaling).
+- `rolling_features`: List of rolling-window aggregations with window size, columns, grouping, and aggregations (`mean`, `std`, `sum`, `min`, `max`).
+- `feature_sets`: Named sequences of feature-engineering steps. Currently supported steps include:
+  - `technical_indicators`: Adds SMA, volatility, momentum, RSI, returns, volume stats.
+  - `external_join`: Merges external CSVs on specified keys and optionally fills numeric missing values.
+- `target`: Defines the prediction target. For `type: "direction"`, the label is 1 when the future price (horizon steps ahead) exceeds the current price, else 0.
+- `ablation_feature_sets`: List of feature-set combinations evaluated during ablation (e.g. `["technical"], ["technical", "sentiment"], ...`).
+- `feature_selection`: Columns to exclude when constructing the feature matrix (non-numeric columns like `Date`, `Ticker`).
+
+Profiles enable quick comparisons such as median/mode imputation vs. forward fill, robust scaling with winsorisation, or short-window return features without altering the base template.
+
+### 5.3 Model Registry
+
+Models are declared with their import path and constructor parameters, for example:
+```json
+"logistic_regression": {
+  "module": "sklearn.linear_model",
+  "class": "LogisticRegression",
+  "params": {
+    "solver": "lbfgs",
+    "max_iter": 1000
+  }
+}
+```
+Add new models by specifying their module, class, and default parameters. The notebook uses these keys when building estimators.
+
+### 5.4 Experiments
+
+Each experiment ties together a dataset, preprocessing, models, and metrics. For Question 1 (`q1_stock_movement`):
+
+- `dataset`: Uses the `stock_market` preprocessing configuration.
+- `dataset_options`: Loader options (`tickers`, `date_column`, `parse_dates`, etc.).
+- `split`: Specifies the evaluation protocol (currently time-based train/test split using `test_size`).
+- `models`: List of model keys from the registry to evaluate.
+- `metrics`: Metrics computed during evaluation (`accuracy`, `f1`).
+- `ablation_sets_key`: Points to the feature-set combinations defined under preprocessing.
+
+Update this section to explore different datasets, add metrics, or change the ablation strategy.
+
+---
+
+## 6. Preprocessing Utilities (`data_processings/`)
+
+Key modules and their roles:
+
+| Module | Purpose |
+| --- | --- |
+| `config.py` | Reads and caches `assets/config.json`. |
+| `missing_values.py` | Loads missing-value presets and applies configurable imputation with optional indicators. |
+| `scaling.py` | Fits standard/min–max/robust scalers on the training slice (optionally per-ticker) and reuses them on the test split. |
+| `rolling_features.py` | Adds rolling statistics over specified windows and aggregations. |
+| `feature_engineering.py` | Applies feature steps (technical indicators, sentiment/macro proxies, optional external joins) defined in the config. |
+| `outliers.py` | Implements winsorisation models (global or per-ticker) fitted on the training data. |
+| `datasets.py` | Loads raw stock data from CSV files for given tickers. |
+| `pipeline.py` | Orchestrates the full preprocessing pipeline: missing values → scaling → rolling features → feature sets → target engineering → feature selection. |
+
+All modules are re-exported via `data_processings/__init__.py` for convenient imports in notebooks or scripts.
+
+---
+
+## 7. Model Registry (`models/`)
+
+`models/registry.py` contains two main helpers:
+
+- `get_model_config(model_key)` – fetches the model definition from `config.json`.
+- `build_model(model_key, overrides=None)` – imports the model class, merges optional overrides with the default parameters, and returns an instantiated estimator.
+
+Usage example:
+```python
+from models import build_model
+model = build_model("random_forest", overrides={"n_estimators": 500})
+```
+
+---
+
+## 8. Running the Q1 Ablation Notebook (`scripts/q1.ipynb`)
+
+1. **Activate the Conda environment** (`conda activate ML`).
+2. **Ensure datasets and auxiliary files exist** under `assets/datasets/stock_market/` as expected by the config.
+3. **Launch Jupyter**:
+   ```bash
+   jupyter notebook
+   ```
+4. Open `scripts/q1.ipynb` and run all cells.
+
+### 8.1 Notebook Workflow
+
+- **Imports & Config**: Reads `assets/config.json`, fetches the experiment definition, and loads preprocessing settings.
+- **Dataset Loading**: Uses `data_processings.datasets.load_stock_market_data` with ticker selection and parsing options from the config.
+- **Base Preprocessing**: Resolves the selected profile (default or one from `ablation_preprocessing_sets`) and applies missing-value handling, configured transforms, and rolling features via `apply_base_preprocessing`.
+- **Feature Engineering & Target**: Applies the fixed feature-set list (for preprocessing ablations) or the current feature combination, appends the direction target, and sanitises the dataframe before splitting.
+- **Time-Based Split**: Splits the data chronologically according to the `split` configuration, then fits winsorisation/scaling parameters on the training slice before transforming the test slice.
+- **Model Evaluation**: Iterates through the configured models, builds them via the registry, fits on the training split, and reports metrics on the test split (`accuracy`, `f1`).
+- **Results Table**: Returns a dataframe summarising metrics for each preprocessing profile (column `preproc_profile`) and model. When `ablation_axis` is set to `features`, the output still includes the `feature_sets` column for backward compatibility.
+
+### 8.2 Customising the Ablation
+
+- **Add feature sets**: Edit `preprocessing.stock_market.feature_sets` and update `ablation_feature_sets` to include new combinations.
+- **Add models**: Extend the `models` section in the config with new estimators, then list their keys under `experiments.q1_stock_movement.models`.
+- **Change tickers or horizon**: Update `dataset_options` or the `target` definition in the config.
+- **Switch metrics**: Append supported metrics (`accuracy`, `f1`) under `experiments.q1_stock_movement.metrics`. Add new metrics by extending the notebook’s `evaluate_model` helper.
+
+### 8.3 Handling Failures
+
+- If you encounter a `ModuleNotFoundError: No module named 'pandas'`, ensure the Conda environment is activated.
+- If external CSV files are missing, verify the paths defined in `preprocessing.stock_market.feature_sets.sentiment` and `macro`.
+- For long-running experiments, consider reducing `limit_per_ticker` or limiting the number of tickers.
+
+---
+
+## 9. Extending the Repository
+
+1. **New Experiments**: Add entries under `experiments` in `assets/config.json`, create a dedicated notebook or script, and reuse the preprocessing pipeline.
+2. **Additional Datasets**: Implement loader helpers in `data_processings/datasets.py` and reference them in the new experiment configuration.
+3. **Advanced Modelling**: Register more complex models (e.g., gradient boosting variants, neural networks) and integrate them into the ablation workflow.
+4. **Evaluation Enhancements**: Expand metrics, add visualisations (confusion matrices, ROC curves), or integrate experiment tracking tools (e.g. MLflow).
+5. **Testing & CI**: Add unit tests under `debug_tests/` to validate preprocessing transformations and model pipelines.
+
+---
+
+## 10. Useful Commands
+
+```bash
+# Update the Conda environment after modifying environment.yml
+conda env update -f environment.yml --prune
+
+# Lint notebooks by converting them to scripts (example)
+jupyter nbconvert --to script scripts/q1.ipynb
+
+# Run q1 notebook from CLI and capture the output with papermill (optional)
+papermill scripts/q1.ipynb outputs/q1_experiment.ipynb
+```
+
+---
+
+## 11. Getting Help
+
+- Check `README.md` for the project overview and team responsibilities.
+- Use `codex.md` (external notes) for a condensed summary of repository changes.
+- Collaborate via the team’s communication channels (WhatsApp/Zoom) as outlined in the README communication plan.
+
+---
+
+By following this guide, a new developer should be able to reproduce the existing experiments, adjust configurations, and extend the repository for further research questions.
