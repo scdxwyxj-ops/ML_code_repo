@@ -75,7 +75,7 @@ The configuration file drives preprocessing, model instantiation, and experiment
 
 - `missing_value_presets`: Named imputation strategies for each dataset.
 - `preprocessing`: Dataset-specific pipelines (scaling options, rolling windows, feature sets, target definitions, ablation combinations).
-- `models`: Registry of ML estimators (module path, class name, parameters).
+- `models`: Registry of ML estimators (module path, class name, parameters) – defaults now include logistic regression, naive Bayes, decision tree, SVM, random forest, and gradient boosting classifiers.
 - `experiments`: Metadata that links datasets, models, metrics, and feature-set ablations.
 
 ### 5.1 Missing Value Presets
@@ -130,7 +130,7 @@ Each experiment ties together a dataset, preprocessing, models, and metrics. For
 - `dataset`: Uses the `stock_market` preprocessing configuration.
 - `dataset_options`: Loader options (`tickers`, `date_column`, `parse_dates`, etc.).
 - `split`: Specifies the evaluation protocol (currently time-based train/test split using `test_size`).
-- `models`: List of model keys from the registry to evaluate.
+- `models`: List of model keys from the registry to evaluate (logistic regression, naive Bayes, decision tree, SVM, random forest, gradient boosting by default).
 - `metrics`: Metrics computed during evaluation (`accuracy`, `f1`).
 - `ablation_sets_key`: Points to the feature-set combinations defined under preprocessing.
 

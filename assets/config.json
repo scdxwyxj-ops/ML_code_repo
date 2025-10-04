@@ -302,6 +302,27 @@
       "params": {
         "random_state": 42
       }
+    },
+    "naive_bayes": {
+      "module": "sklearn.naive_bayes",
+      "class": "GaussianNB",
+      "params": {}
+    },
+    "decision_tree": {
+      "module": "sklearn.tree",
+      "class": "DecisionTreeClassifier",
+      "params": {
+        "random_state": 42
+      }
+    },
+    "svm": {
+      "module": "sklearn.svm",
+      "class": "SVC",
+      "params": {
+        "kernel": "rbf",
+        "probability": true,
+        "random_state": 42
+      }
     }
   },
   "experiments": {
@@ -323,6 +344,9 @@
       },
       "models": [
         "logistic_regression",
+        "naive_bayes",
+        "decision_tree",
+        "svm",
         "random_forest",
         "gradient_boosting"
       ],
