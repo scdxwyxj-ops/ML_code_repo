@@ -1,16 +1,22 @@
 {
   "datasets": [
     {
-      "name": "titanic",
-      "kaggle": "heptapod/titanic",
-      "target_dir": "titanic",
-      "description": "Passenger survival data for binary classification exercises."
+      "name": "stock_market",
+      "kaggle": "borismarjanovic/price-volume-data-for-all-us-stocks-etfs",
+      "target_dir": "stock_market",
+      "description": "Historical price and volume data for all US stocks and ETFs, suitable for stock movement prediction."
     },
     {
-      "name": "wine_reviews",
-      "kaggle": "zynicide/wine-reviews",
-      "target_dir": "wine_reviews",
-      "description": "Wine review scores with text and categorical attributes."
+      "name": "credit_card_fraud",
+      "kaggle": "mlg-ulb/creditcardfraud",
+      "target_dir": "credit_card_fraud",
+      "description": "European credit card transactions dataset for fraud detection; highly imbalanced binary classification task."
+    },
+    {
+      "name": "lending_club_loans",
+      "kaggle": "wordsforthewise/lending-club",
+      "target_dir": "lending_club_loans",
+      "description": "Lending Club loan data from 2007–2018 for credit risk assessment and model stability analysis."
     }
   ]
 }
