@@ -1,0 +1,157 @@
+{
+  "dataset": "credit_card_fraud",
+  "dataset_options": {
+    "parse_dates": false,
+    "limit_rows": 10000
+  },
+  "split": {
+    "method": "time",
+    "test_size": 0.2
+  },
+  "target_column": "Class",
+  "models": [
+    "logistic_regression",
+    "naive_bayes",
+    "decision_tree",
+    "svm",
+    "random_forest",
+    "gradient_boosting"
+  ],
+  "neural_models": [
+    "mlp",
+    "residual_mlp",
+    "transformer"
+  ],
+  "metrics": [
+    "accuracy",
+    "f1"
+  ],
+  "transforms": {
+    "sort": {
+      "type": "sorting",
+      "params": {
+        "order": [
+          "Time"
+        ]
+      }
+    },
+    "missing": {
+      "type": "missing_values",
+      "params": {
+        "preset": "credit_card_fraud"
+      }
+    },
+    "feature_sets": {
+      "type": "feature_set",
+      "params": {
+        "steps": []
+      }
+    },
+    "log_amount": {
+      "type": "log1p",
+      "enabled": false,
+      "params": {
+        "columns": [
+          "Amount"
+        ]
+      }
+    },
+    "balance": {
+      "type": "class_balance",
+      "apply_to": "train",
+      "params": {
+        "method": "oversample",
+        "target_column": "Class",
+        "random_state": 42
+      }
+    },
+    "clip": {
+      "type": "outlier_clip",
+      "enabled": true,
+      "params": {
+        "method": "winsorize",
+        "lower": 0.01,
+        "upper": 0.99,
+        "columns": [
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6",
+          "V7",
+          "V8",
+          "V9",
+          "V10",
+          "V11",
+          "V12",
+          "V13",
+          "V14",
+          "V15",
+          "V16",
+          "V17",
+          "V18",
+          "V19",
+          "V20",
+          "V21",
+          "V22",
+          "V23",
+          "V24",
+          "V25",
+          "V26",
+          "V27",
+          "V28",
+          "Amount"
+        ]
+      }
+    },
+    "scale": {
+      "type": "scaling",
+      "params": {
+        "strategy": "robust",
+        "columns": [
+          "Time",
+          "Amount",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6",
+          "V7",
+          "V8",
+          "V9",
+          "V10",
+          "V11",
+          "V12",
+          "V13",
+          "V14",
+          "V15",
+          "V16",
+          "V17",
+          "V18",
+          "V19",
+          "V20",
+          "V21",
+          "V22",
+          "V23",
+          "V24",
+          "V25",
+          "V26",
+          "V27",
+          "V28"
+        ],
+        "groupby": []
+      }
+    }
+  },
+  "pipeline": [
+    "sort",
+    "missing",
+    "feature_sets",
+    "log_amount",
+    "balance",
+    "clip",
+    "scale"
+  ]
+}

@@ -1,0 +1,91 @@
+{
+  "dataset": "credit_card_fraud",
+  "dataset_options": {
+    "parse_dates": false,
+    "limit_rows": 10000
+  },
+  "split": {
+    "method": "time",
+    "test_size": 0.2
+  },
+  "target_column": "Class",
+  "models": [
+    "logistic_regression",
+    "naive_bayes",
+    "decision_tree",
+    "svm",
+    "random_forest",
+    "gradient_boosting"
+  ],
+  "neural_models": [
+    "mlp",
+    "residual_mlp",
+    "transformer"
+  ],
+  "metrics": [
+    "accuracy",
+    "f1"
+  ],
+  "transforms": {
+    "sort": {
+      "type": "sorting",
+      "params": {
+        "order": [
+          "Time"
+        ]
+      }
+    },
+    "missing": {
+      "type": "missing_values",
+      "params": {
+        "preset": "credit_card_fraud"
+      }
+    },
+    "feature_sets": {
+      "type": "feature_set",
+      "params": {
+        "steps": []
+      }
+    },
+    "log_amount": {
+      "type": "log1p",
+      "enabled": true,
+      "params": {
+        "columns": [
+          "Amount"
+        ]
+      }
+    },
+    "balance": {
+      "type": "class_balance",
+      "apply_to": "train",
+      "params": {
+        "method": "oversample",
+        "target_column": "Class",
+        "random_state": 42
+      }
+    },
+    "clip": {
+      "type": "outlier_clip",
+      "enabled": false
+    },
+    "scale": {
+      "type": "scaling",
+      "enabled": false,
+      "params": {
+        "strategy": null,
+        "columns": [],
+        "groupby": []
+      }
+    }
+  },
+  "pipeline": [
+    "sort",
+    "missing",
+    "feature_sets",
+    "log_amount",
+    "balance",
+    "clip",
+    "scale"
+  ]
+}

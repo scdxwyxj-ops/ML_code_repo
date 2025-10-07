@@ -204,7 +204,7 @@ Neural baselines live in `models/neural.py`, which provides PyTorch implementati
 
 - **Imports & Config**: Reads `assets/config.json`, fetches the experiment definition, and loads preprocessing settings.
 - **Dataset Loading**: Uses `data_processings.datasets.load_stock_market_data` with ticker selection and parsing options from the config.
-- **Base Preprocessing**: Resolves the selected profile (default or one from `ablation_preprocessing_sets`) and applies missing-value handling, configured transforms, and rolling features via `apply_base_preprocessing`. Training splits can optionally undergo class balancing (`class_balance`) before downstream transforms.
+- **DFX Pipeline**: Each experiment config now enumerates a `data_processings.transforms.DFXTransform` pipeline, so missing-value handling, rolling features, feature sets, scaling, and balancing are orchestrated via `TransformPipeline`. Global transforms run once through `pipeline.apply_global`, while train/test stages reuse the same fitted state.
 - **Feature Engineering & Target**: Applies the fixed feature-set list (for preprocessing ablations) or the current feature combination, appends the direction target, and sanitises the dataframe before splitting.
 - **Time-Based Split**: Splits the data chronologically according to the `split` configuration, then fits winsorisation/scaling parameters on the training slice before transforming the test slice.
 - **Model Evaluation**: Iterates through the configured models, builds them via the registry, fits on the training split, and reports metrics on the test split (`accuracy`, `f1`).

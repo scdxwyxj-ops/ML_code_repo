@@ -1,0 +1,120 @@
+{
+  "dataset": "stock_market",
+  "dataset_options": {
+    "tickers": ["aapl.us", "msft.us"],
+    "date_column": "Date",
+    "ticker_column": "Ticker",
+    "parse_dates": true,
+    "limit_per_ticker": 2000
+  },
+  "split": {
+    "method": "time",
+    "test_size": 0.2
+  },
+  "target_column": "target",
+  "drop_columns": ["Date", "Ticker"],
+  "models": [
+    "logistic_regression",
+    "naive_bayes",
+    "decision_tree",
+    "svm",
+    "random_forest",
+    "gradient_boosting"
+  ],
+  "metrics": ["accuracy", "f1"],
+  "transforms": {
+    "sort": {
+      "type": "sorting",
+      "stage": "global",
+      "params": { "order": ["Ticker", "Date"] }
+    },
+    "missing": {
+      "type": "missing_values",
+      "stage": "global",
+      "params": { "preset": "stock_market" }
+    },
+    "log_volume": {
+      "type": "log1p",
+      "stage": "global",
+      "params": { "columns": ["Volume"] }
+    },
+    "features_all": {
+      "type": "feature_set",
+      "stage": "global",
+      "params": {
+        "steps": [
+          {
+            "type": "technical_indicators",
+            "price_column": "Close",
+            "volume_column": "Volume",
+            "groupby": ["Ticker"],
+            "windows": [5, 10, 20]
+          },
+          {
+            "type": "sentiment_proxy",
+            "price_column": "Close",
+            "groupby": ["Ticker"],
+            "window": 10,
+            "prefix": "sentiment"
+          },
+          {
+            "type": "macro_proxy",
+            "date_column": "Date",
+            "columns": ["Close", "Volume"],
+            "aggregations": ["mean", "std"],
+            "prefix": "macro"
+          }
+        ]
+      }
+    },
+    "rolling": {
+      "type": "rolling",
+      "stage": "global",
+      "params": {
+        "specs": [
+          {
+            "columns": ["Close"],
+            "window": 5,
+            "min_periods": 1,
+            "aggregations": ["mean", "std"],
+            "groupby": ["Ticker"],
+            "prefix": "close"
+          },
+          {
+            "columns": ["Volume"],
+            "window": 5,
+            "min_periods": 1,
+            "aggregations": ["mean"],
+            "groupby": ["Ticker"],
+            "prefix": "volume"
+          }
+        ]
+      }
+    },
+    "target": {
+      "type": "target",
+      "stage": "global",
+      "params": {
+        "target_column": "target",
+        "target_type": "direction",
+        "price_column": "Close",
+        "horizon": 1,
+        "positive_label": 1,
+        "negative_label": 0,
+        "groupby": ["Ticker"],
+        "drop_na": true
+      }
+    },
+    "scale": {
+      "type": "scaling",
+      "stage": "train_test",
+      "enabled": false,
+      "params": {
+        "strategy": null,
+        "columns": ["Open", "High", "Low", "Close", "Volume"],
+        "groupby": ["Ticker"]
+      }
+    }
+  },
+  "pipeline": ["sort", "missing", "log_volume", "features_all", "rolling", "target", "scale"]
+}

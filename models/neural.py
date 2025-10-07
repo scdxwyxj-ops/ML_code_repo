@@ -105,6 +105,7 @@ class TabularTransformer(nn.Module):
             activation="gelu",
         )
         self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+        self.input_norm = nn.LayerNorm(d_model)
         self.output_head = nn.Sequential(
             nn.Linear(d_model, d_model),
             nn.GELU(),
@@ -117,6 +118,7 @@ class TabularTransformer(nn.Module):
         batch_size = x.size(0)
         seq = x.view(batch_size, self.input_dim, 1)
         seq = self.input_proj(seq)  # (batch, seq_len, d_model)
+        seq = self.input_norm(seq)
         encoded = self.encoder(seq)
         pooled = encoded.mean(dim=1)
         return self.output_head(pooled)
