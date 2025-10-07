@@ -149,6 +149,31 @@ def select_feature_columns(
     return features, target
 
 
+def balance_training_dataframe(
+    df: pd.DataFrame,
+    dataset_key: str,
+    target_column: str = "target",
+    *,
+    config_override: Optional[Mapping[str, object]] = None,
+) -> pd.DataFrame:
+    config = copy.deepcopy(config_override) if config_override is not None else get_preprocessing_config(dataset_key)
+    balance_cfg = config.get("class_balance")
+    if not balance_cfg:
+        return df
+
+    method = (balance_cfg.get("method") or "oversample").lower()
+    target_col = balance_cfg.get("target_column") or target_column
+    if target_col not in df.columns:
+        raise KeyError(f"Target column '{target_col}' not found for balancing.")
+    random_state = int(balance_cfg.get("random_state", 42))
+
+    if method == "oversample":
+        return _oversample_dataframe(df, target_col, random_state)
+    if method == "undersample":
+        return _undersample_dataframe(df, target_col, random_state)
+    raise ValueError(f"Unsupported class balancing method: {method}")
+
+
 def apply_post_split_transforms(
     train_df: pd.DataFrame,
     test_df: pd.DataFrame,
@@ -283,6 +308,55 @@ def _log1p_safe(series: pd.Series) -> pd.Series:
 def _signed_log1p(series: pd.Series) -> pd.Series:
     sanitized = series.replace([np.inf, -np.inf], np.nan).fillna(0.0)
     return np.sign(sanitized) * np.log1p(np.abs(sanitized))
+
+
+def _oversample_dataframe(df: pd.DataFrame, target_col: str, random_state: int) -> pd.DataFrame:
+    counts = df[target_col].value_counts()
+    if counts.empty:
+        return df
+
+    max_count = counts.max()
+    rng = np.random.RandomState(random_state)
+    balanced_frames = []
+    for idx, (label, count) in enumerate(counts.items()):
+        subset = df[df[target_col] == label]
+        if count < max_count:
+            extra = subset.sample(
+                max_count - count,
+                replace=True,
+                random_state=rng.randint(0, 2**32 - 1),
+            )
+            subset = pd.concat([subset, extra], axis=0)
+        balanced_frames.append(subset)
+
+    balanced = pd.concat(balanced_frames, axis=0).sample(
+        frac=1.0, random_state=random_state
+    )
+    return balanced.reset_index(drop=True)
+
+
+def _undersample_dataframe(df: pd.DataFrame, target_col: str, random_state: int) -> pd.DataFrame:
+    counts = df[target_col].value_counts()
+    if counts.empty:
+        return df
+
+    min_count = counts.min()
+    rng = np.random.RandomState(random_state)
+    sampled_frames = []
+    for idx, (label, count) in enumerate(counts.items()):
+        subset = df[df[target_col] == label]
+        if count > min_count:
+            subset = subset.sample(
+                min_count,
+                replace=False,
+                random_state=rng.randint(0, 2**32 - 1),
+            )
+        sampled_frames.append(subset)
+
+    balanced = pd.concat(sampled_frames, axis=0).sample(
+        frac=1.0, random_state=random_state
+    )
+    return balanced.reset_index(drop=True)
 
 
 __all__ = [

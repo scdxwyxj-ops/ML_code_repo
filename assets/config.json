@@ -148,6 +148,10 @@
           "Ticker"
         ]
       },
+      "class_balance": {
+        "method": "oversample",
+        "random_state": 42
+      },
       "profiles": {
         "P0_baseline": {},
         "P1_median_mode_no_indicator": {
@@ -327,6 +331,11 @@
         "exclude": [
           "Class"
         ]
+      },
+      "class_balance": {
+        "method": "oversample",
+        "random_state": 42,
+        "target_column": "Class"
       },
       "profiles": {
         "P0_baseline": {},

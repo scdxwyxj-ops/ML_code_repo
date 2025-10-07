@@ -110,6 +110,7 @@ A dataset entry (e.g. `preprocessing.stock_market`) can specify:
 - `profiles`: Named preprocessing overrides that adjust missing value strategy, scaling, transforms, or outlier handling without modifying the base template.
 - `transforms`: Lightweight column-level operations (e.g., `log1p_safe`, `signed_log1p`, `returns`) applied prior to feature engineering.
 - `outlier_clip`: Optional winsorisation instructions (`method: "winsorize"`) with configurable quantiles and per-group behaviour.
+- `class_balance`: Optional training-set balancing (currently supports `oversample` and `undersample`) applied before post-split transforms.
 - `target`: Defines the prediction target. For `type: "direction"`, the label is 1 when the future price (horizon steps ahead) exceeds the current price, else 0. For `type: "column"`, the specified column is copied into the model target.
 - `ablation_feature_sets`: List of feature-set combinations evaluated during ablation (e.g. `["technical"], ["technical", "sentiment"], ...`).
 - `feature_selection`: Columns to exclude when constructing the feature matrix (non-numeric columns like `Date`, `Ticker`).
@@ -198,7 +199,7 @@ Neural baselines live in `models/neural.py`, which provides PyTorch implementati
 
 - **Imports & Config**: Reads `assets/config.json`, fetches the experiment definition, and loads preprocessing settings.
 - **Dataset Loading**: Uses `data_processings.datasets.load_stock_market_data` with ticker selection and parsing options from the config.
-- **Base Preprocessing**: Resolves the selected profile (default or one from `ablation_preprocessing_sets`) and applies missing-value handling, configured transforms, and rolling features via `apply_base_preprocessing`.
+- **Base Preprocessing**: Resolves the selected profile (default or one from `ablation_preprocessing_sets`) and applies missing-value handling, configured transforms, and rolling features via `apply_base_preprocessing`. Training splits can optionally undergo class balancing (`class_balance`) before downstream transforms.
 - **Feature Engineering & Target**: Applies the fixed feature-set list (for preprocessing ablations) or the current feature combination, appends the direction target, and sanitises the dataframe before splitting.
 - **Time-Based Split**: Splits the data chronologically according to the `split` configuration, then fits winsorisation/scaling parameters on the training slice before transforming the test slice.
 - **Model Evaluation**: Iterates through the configured models, builds them via the registry, fits on the training split, and reports metrics on the test split (`accuracy`, `f1`).
@@ -229,7 +230,7 @@ This notebook targets the credit-card fraud dataset and compares classical model
 - **Model Suites**:
   - Traditional models come from `experiments.q2_credit_fraud.models` (logistic regression, naive Bayes, decision tree, SVM, random forest, gradient boosting).
   - Neural models are configured in `deep_models` (`mlp`, `lstm`, `transformer`) and trained via `models/neural.py`.
-- **Training Flow**: A dedicated training cell iterates over preprocessing profiles, (re)trains neural models that are missing snapshots (with per-epoch progress bars), and saves both weights (`.pth`) and loss histories (`_history.json`) in `assets/snapshots`. A separate evaluation cell reloads those snapshots, fits classical models on the fly, and then reports accuracy/F1 scores in the results table (`model_type`, `model`, `preproc_profile`).
+- **Training Flow**: A dedicated training cell iterates over preprocessing profiles, applies optional class balancing (`class_balance`) to the training slice, (re)trains any missing neural snapshots (with per-epoch progress bars), and saves both weights (`.pth`) and loss histories (`_history.json`) in `assets/snapshots`. A separate evaluation cell reloads those snapshots, fits classical models on the fly, and then reports accuracy/F1 scores in the results table (`model_type`, `model`, `preproc_profile`).
 
 > PyTorch (preferably with CUDA) must be installed locally (`pip install torch`) to run the neural baselines; training automatically utilises the GPU when available.
 
