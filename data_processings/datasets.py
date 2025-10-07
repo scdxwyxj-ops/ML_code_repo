@@ -10,12 +10,14 @@ import pandas as pd
 from .config import CONFIG_PATH
 
 STOCK_DIR = CONFIG_PATH.parent / "datasets" / "stock_market"
-CANDIDATE_DIRS = [
+STOCK_CANDIDATE_DIRS = [
     STOCK_DIR / "Data" / "Stocks",
     STOCK_DIR / "Data" / "ETFs",
     STOCK_DIR / "Stocks",
     STOCK_DIR / "ETFs",
 ]
+
+CREDIT_FRAUD_PATH = CONFIG_PATH.parent / "datasets" / "credit_card_fraud" / "creditcard.csv"
 
 
 def load_stock_market_data(
@@ -59,12 +61,33 @@ def load_stock_market_data(
     return combined
 
 
+def load_credit_card_data(
+    *,
+    parse_dates: bool = False,
+    limit_rows: int | None = None,
+) -> pd.DataFrame:
+    """Load the credit card fraud dataset."""
+
+    if not CREDIT_FRAUD_PATH.exists():
+        raise FileNotFoundError(f"Credit card fraud dataset not found: {CREDIT_FRAUD_PATH}")
+
+    read_kwargs: Mapping[str, object] = {}
+    if parse_dates:
+        read_kwargs["parse_dates"] = ["Time"]
+
+    df = pd.read_csv(CREDIT_FRAUD_PATH, **read_kwargs)
+    if limit_rows:
+        df = df.head(limit_rows)
+    df = df.reset_index(drop=True)
+    return df
+
+
 def _locate_ticker_file(ticker: str) -> Path | None:
-    for directory in CANDIDATE_DIRS:
+    for directory in STOCK_CANDIDATE_DIRS:
         candidate = directory / f"{ticker}.txt"
         if candidate.exists():
             return candidate
     return None
 
 
-__all__ = ["load_stock_market_data"]
+__all__ = ["load_stock_market_data", "load_credit_card_data"]

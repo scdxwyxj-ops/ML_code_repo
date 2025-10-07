@@ -1,7 +1,7 @@
 """Preprocessing package aggregating configuration-driven utilities."""
 
 from .config import CONFIG_PATH, get_section, load_config
-from .datasets import load_stock_market_data
+from .datasets import load_credit_card_data, load_stock_market_data
 from .feature_engineering import apply_feature_steps
 from .missing_values import (
     DATASET_MISSING_VALUE_PRESETS,
@@ -40,6 +40,7 @@ __all__ = [
     "get_section",
     "handle_missing_values",
     "load_config",
+    "load_credit_card_data",
     "load_stock_market_data",
     "select_feature_columns",
     "transform_with_clip_model",

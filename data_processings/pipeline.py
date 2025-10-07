@@ -44,7 +44,11 @@ def apply_base_preprocessing(
     transforms = config.get("transforms") or []
 
     working = df.copy()
-    order_columns = [column for column in DEFAULT_GROUPBY if column in working.columns]
+    order_override = config.get("order_columns")
+    if order_override:
+        order_columns = [column for column in order_override if column in working.columns]
+    else:
+        order_columns = [column for column in DEFAULT_GROUPBY if column in working.columns]
     if order_columns:
         working = working.sort_values(order_columns).reset_index(drop=True)
 
@@ -100,19 +104,25 @@ def append_target(
 
     working = df.copy()
 
-    if target_type != "direction":
+    if target_type == "direction":
+        if groupby:
+            grouped_price = working.groupby(list(groupby))[price_column]
+            future_price = grouped_price.shift(-horizon)
+        else:
+            future_price = working[price_column].shift(-horizon)
+
+        label = (future_price > working[price_column]).astype(int)
+        label = label.where(~label.isna(), other=negative_label)
+
+        working[target_column] = label
+    elif target_type == "column":
+        label_column = target_cfg.get("column")
+        if not label_column:
+            raise KeyError("Target configuration with type 'column' requires a 'column' entry.")
+        working[target_column] = working[label_column]
+    else:
         raise ValueError(f"Unsupported target type: {target_type}")
 
-    if groupby:
-        grouped_price = working.groupby(list(groupby))[price_column]
-        future_price = grouped_price.shift(-horizon)
-    else:
-        future_price = working[price_column].shift(-horizon)
-
-    label = (future_price > working[price_column]).astype(int)
-    label = label.where(~label.isna(), other=negative_label)
-
-    working[target_column] = label
     working = working.dropna(subset=[target_column])
     return working
 
