@@ -8,6 +8,7 @@ from typing import Dict, Iterable, Mapping, Tuple
 
 import torch
 from torch import Tensor, nn
+from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import DataLoader, TensorDataset
 from tqdm.auto import tqdm
 
@@ -17,6 +18,7 @@ class TrainingConfig:
     epochs: int = 20
     batch_size: int = 256
     learning_rate: float = 1e-3
+    grad_clip: float | None = None
 
 
 class TabularMLP(nn.Module):
@@ -36,39 +38,49 @@ class TabularMLP(nn.Module):
         return self.net(x)
 
 
-class TabularLSTM(nn.Module):
+class ResidualBlock(nn.Module):
+    def __init__(self, dim: int, dropout: float) -> None:
+        super().__init__()
+        self.block = nn.Sequential(
+            nn.Linear(dim, dim),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(dim, dim),
+            nn.Dropout(dropout),
+        )
+        self.norm = nn.LayerNorm(dim)
+
+    def forward(self, x: Tensor) -> Tensor:
+        return self.norm(x + self.block(x))
+
+
+class ResidualMLP(nn.Module):
     def __init__(
         self,
         input_dim: int,
-        hidden_size: int,
-        num_layers: int,
+        hidden_dim: int,
+        num_blocks: int,
         dropout: float,
         num_classes: int = 2,
     ) -> None:
         super().__init__()
-        self.hidden_size = hidden_size
-        self.num_layers = num_layers
-        self.lstm = nn.LSTM(
-            input_size=1,
-            hidden_size=hidden_size,
-            num_layers=num_layers,
-            batch_first=True,
-            dropout=dropout if num_layers > 1 else 0.0,
-        )
-        self.classifier = nn.Sequential(
-            nn.Linear(hidden_size, hidden_size),
+        self.input_proj = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
             nn.ReLU(),
             nn.Dropout(dropout),
-            nn.Linear(hidden_size, num_classes),
         )
-        self.input_dim = input_dim
+        self.blocks = nn.ModuleList([ResidualBlock(hidden_dim, dropout) for _ in range(num_blocks)])
+        self.head = nn.Sequential(
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, num_classes),
+        )
 
     def forward(self, x: Tensor) -> Tensor:
-        batch_size = x.size(0)
-        seq = x.view(batch_size, self.input_dim, 1)
-        output, _ = self.lstm(seq)
-        pooled = output[:, -1, :]
-        return self.classifier(pooled)
+        x = self.input_proj(x)
+        for block in self.blocks:
+            x = block(x)
+        return self.head(x)
 
 
 class TabularTransformer(nn.Module):
@@ -126,17 +138,18 @@ def build_neural_model(
         epochs=int(training_kwargs.get("epochs", 20)),
         batch_size=int(training_kwargs.get("batch_size", 256)),
         learning_rate=float(training_kwargs.get("learning_rate", 1e-3)),
+        grad_clip=float(training_kwargs["grad_clip"]) if training_kwargs.get("grad_clip") is not None else None,
     )
 
     if model_cfg.get("class") == "TabularMLP":
         hidden_dims = params.get("hidden_dims", [128, 64])
         dropout = float(params.get("dropout", 0.2))
         model = TabularMLP(input_dim, hidden_dims, dropout, num_classes)
-    elif model_cfg.get("class") == "TabularLSTM":
-        hidden_size = int(params.get("hidden_size", 64))
-        num_layers = int(params.get("num_layers", 2))
+    elif model_cfg.get("class") == "ResidualMLP":
+        hidden_dim = int(params.get("hidden_dim", 256))
+        num_blocks = int(params.get("num_blocks", 3))
         dropout = float(params.get("dropout", 0.2))
-        model = TabularLSTM(input_dim, hidden_size, num_layers, dropout, num_classes)
+        model = ResidualMLP(input_dim, hidden_dim, num_blocks, dropout, num_classes)
     elif model_cfg.get("class") == "TabularTransformer":
         d_model = int(params.get("d_model", 64))
         nhead = int(params.get("nhead", 8))
@@ -183,6 +196,7 @@ def train_neural_model(
     progress_label: str | None = None,
     save_path: Path | None = None,
     metadata: Mapping[str, object] | None = None,
+    grad_clip: float | None = None,
 ) -> list[Dict[str, float]]:
     device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(device)
@@ -206,6 +220,8 @@ def train_neural_model(
             logits = model(features)
             loss = criterion(logits, labels)
             loss.backward()
+            if grad_clip is not None:
+                clip_grad_norm_(model.parameters(), grad_clip)
             optimizer.step()
             train_loss += loss.item() * labels.size(0)
 

@@ -536,21 +536,23 @@
       "training": {
         "epochs": 20,
         "batch_size": 512,
-        "learning_rate": 0.001
+        "learning_rate": 0.001,
+        "grad_clip": 1.0
       }
     },
-    "lstm": {
+    "residual_mlp": {
       "module": "models.neural",
-      "class": "TabularLSTM",
+      "class": "ResidualMLP",
       "params": {
-        "hidden_size": 64,
-        "num_layers": 2,
+        "hidden_dim": 256,
+        "num_blocks": 3,
         "dropout": 0.2
       },
       "training": {
-        "epochs": 25,
+        "epochs": 30,
         "batch_size": 512,
-        "learning_rate": 0.001
+        "learning_rate": 0.001,
+        "grad_clip": 1.0
       }
     },
     "transformer": {
@@ -566,7 +568,8 @@
       "training": {
         "epochs": 25,
         "batch_size": 512,
-        "learning_rate": 0.0008
+        "learning_rate": 0.0008,
+        "grad_clip": 1.0
       }
     }
   },
@@ -627,7 +630,7 @@
       ],
       "neural_models": [
         "mlp",
-        "lstm",
+        "residual_mlp",
         "transformer"
       ],
       "metrics": [
