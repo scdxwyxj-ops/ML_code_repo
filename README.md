@@ -1,135 +1,86 @@
-The University of Melbourne
+# Financial Market & Fraud ML Toolkit
 
-COMP90049, Introduction to Machine Learning, Semester 2, 2025
+Repository for COMP90049 (Introduction to Machine Learning) Assignment 2, Group G03.  
+It provides a configuration-driven pipeline for:
+- **Q1** &ndash; Stock price movement ablation studies across feature engineering variants.
+- **Q2** &ndash; Credit-card fraud detection comparing classical ML and neural baselines.
 
-Assignment 2
-
----
-
-## Group Name
-**G03**
-
-## Group Members
-- Zivanka Nafisa Wongkaren – 1446841 – zwongkaren@student.unimelb.edu.au
-- Kim Donguk – 1674775 – donguk@student.unimelb.edu.au
-- Zhijing Qiu – 1637936 – zhijingq@student.unimelb.edu.au
-- Jun Xu – 1550679 – juxu4@student.unimelb.edu.au
+All preprocessing, feature engineering, and model choices are declarative; notebooks simply load JSON profiles and execute the shared transform stack.
 
 ---
 
-## Research Question
-
-**Topic:** Financial Market Prediction and Risk Assessment
-
-**Dataset Options:**
-- Stock Market Data (Yahoo Finance)
-- Credit Card Fraud Detection
-- Lending Club Data
-
-**Research Questions:**
-1. How do different feature engineering approaches (technical indicators vs. sentiment analysis vs. macroeconomic factors) affect stock price movement prediction accuracy?
-2. What is the comparative effectiveness of traditional machine learning versus deep learning models for detecting fraudulent transactions across different transaction types?
-3. How does the temporal stability of credit risk models vary when trained on different economic periods and tested on subsequent market conditions?
-4. To what extent can portfolio optimization be improved by incorporating machine learning-based risk predictions compared to traditional financial metrics?
+## Highlights
+- **Composable transforms** – `data_processings.transforms.DFXTransform` and `DFXPipeline` enable reusable, stage-aware preprocessing that mirrors PyTorch-style transforms.
+- **Config-first experiments** – Each ablation profile lives in `assets/configs/q1|q2/*.json`, defining dataset options, transform order, and model lists without editing Python.
+- **Dataset abstractions** – `data_processings.datasets.BaseDataset` is subclassed for stock-market and credit-card loaders with consistent option handling.
+- **Progress-aware notebooks** – `scripts/q1.ipynb` and `scripts/q2.ipynb` emit clear logs for classical evaluation, neural training, and neural inference; neural checkpoints are cached under `assets/snapshots`.
+- **Documentation bundle** – `assets/documentation/` captures environment setup, config schema, and experiment workflows for quick onboarding.
 
 ---
 
-## Project Overview
-Outline the methods and strategies you are going to use to complete the assignment.
+## Quick Start
+1. **Set up the environment**
+   ```bash
+   conda env create -f environment.yml
+   conda activate ML
+   ```
+2. **Download datasets** (requires a Kaggle API token in `~/.kaggle/kaggle.json`)
+   ```bash
+   python scripts/download_datasets.py stock_market credit_card_fraud
+   ```
+3. **Launch Jupyter from the repository root**
+   ```bash
+   jupyter lab  # or: jupyter notebook
+   ```
+4. **Run the notebooks from `scripts/`**
+   - `scripts/q1.ipynb` (stock ablations)  
+   - `scripts/q2.ipynb` (credit fraud classical + neural)
+
+   Each notebook derives `MAIN_PATH = Path(os.getcwd()).parent`, so execute them while your working directory is `scripts/`.
 
 ---
 
-## Roles and Responsibilities
+## Configuring Experiments
+- **Shared presets** – `assets/config.json`
+  - `missing_value_presets`: named imputation strategies.
+  - `models`: scikit-learn estimators used by both notebooks.
+  - `deep_models`: PyTorch architectures plus training defaults for Q2.
+- **Per-question profiles** – `assets/configs/q1/*.json`, `assets/configs/q2/*.json`
+  - `dataset` + `dataset_options`: forwarded to the dataset classes.
+  - `transforms`: ordered, stage-aware transform definitions (see `data_processings/transforms.py`).
+  - `pipeline`: execution order for the named transforms.
+  - `models`, `neural_models`, `metrics`: control which models/metrics the notebooks run.
+  - Metadata such as `target_column`, `drop_columns`, and `split` is surfaced to the notebooks automatically.
 
-| Member Name | Research Question | Additional Responsibilities |
-|---|---|---|
-| **Zivanka Nafisa Wongkaren** | Research question 1 | **REPORT:** Report writing / Report formatting |
-| **Kim Donguk** | Research question 2 | **REPORT:** Report writing / Report formatting |
-| **Zhijing Qiu** | Research question 3 | **DATA:** Find Topic / Find Dataset / Find appropriate research questions |
-| **Jun Xu** | Research question 4 |**ML MODEL:** Model Selection / Model Coding / Model Training  |
-
----
-
-## Communication Plan
-
-- A WhatsApp group chat serves as the main communication channel for the team.
-- Regular meetings are held every weekend via Zoom or WhatsApp.
-- Members must:
-  - Submit honest status updates in the group chat (progress, obstacles, etc.).
-  - Use WhatsApp as the primary channel for updates and inquiries.
-  - Respect member schedules (no urgent messages past 10 PM unless agreed).
-  - Provide clear expectations for task completion timelines.
+Modify or clone a profile to create a new ablation; no Python changes are required as long as the transform parameters are valid.
 
 ---
 
-## Meeting Schedule
+## Documentation
+The `assets/documentation/` directory contains:
+- `documentation.md` – end-to-end project guide (environment, datasets, workflow, troubleshooting).
+- `configs/` – detailed schema references for shared presets, model registries, and pipeline JSON profiles.
 
-- Regular meetings at least once every weekend (between 9:00 AM and 10:00 PM).
-- At least three of the four members should attend every meeting.
-- No member may miss more than two consecutive meetings unless due to health/personal emergencies.
-
----
-
-## Decision-Making Process
-
-- Quick/urgent matters: WhatsApp group chat.
-- Complex/lengthy issues: Zoom or WhatsApp call.
-- All members can voice opinions and concerns.
-- If conflicts arise:
-  1. Healthy debate and/or voting.
-  2. If unresolved, compromise between ideas.
+For deeper architectural context and recent changes, see `codex.md`, which is updated every refactor.
 
 ---
 
-## Work Plan and Timeline
-
-**W9**
-- Finalize dataset selection and refine the research question.
-- Build the initial preprocessing pipeline.
-- Implement baselines (Logistic Regression, Decision Tree).
-- Set up 5-fold cross-validation with fixed random seeds; log metrics.
-
-**W (no class week)**
-- Compare models (e.g., SVM and tree variants).
-- Run hyperparameter search; record best configurations and rationale.
-- Maintain experiment tracking (configs, seeds, results) for reproducibility.
-
-**W10**
-- Conduct error analysis; produce visuals (confusion matrix, feature importance).
-- Inspect misclassified cases and summarize key patterns and failure modes.
-- Draft the report (methods, results, discussion); prepare tables/figures and README checklist.
-
-**W11**
-- Final polish of the report; verify all plots/tables and citations.
-- Submit report PDF and code archive on LMS/Canvas.
-- Write team reflection and peer feedback notes.
-- Submit group reflection (individual submission).
+## Repository At A Glance
+- `data_processings/` – Transform base classes, registry, dataset loaders, scaling/outlier utilities, and pipeline builder.
+- `models/` – Traditional model registry plus PyTorch tabular models.
+- `scripts/` – Dataset downloader and experiment notebooks (`q1.ipynb`, `q2.ipynb`).
+- `assets/`
+  - `config.json` – shared presets.
+  - `configs/q1|q2` – ablation profiles.
+  - `datasets/` – local copies of Kaggle datasets (ignored by Git).
+  - `snapshots/` – neural checkpoints and training histories.
 
 ---
 
-## Code of Conduct
+## Maintainers
+- Zivanka Nafisa Wongkaren (1446841)  
+- Kim Donguk (1674775)  
+- Zhijing Qiu (1637936)  
+- Jun Xu (1550679)
 
-- Respect differing views and opinions.
-- Consider others’ viewpoints before final decisions.
-- Respect values and principles of other members.
-- Be mindful of emergencies or health issues.
-- Actively participate in discussions.
-- Be honest and accountable for assigned tasks (frequent updates, clear time expectations).
-- Be flexible and reconfigure plans when appropriate.
-
----
-
-## Disagreements or Non-Responsiveness
-
-- A member will follow up to identify the problem, communicate concerns, empathize, and discuss solutions.
-- If unresolved, escalate to class instructors.
-- All members should act in good faith to resolve conflicts constructively.
-
----
-
-## Signatures
-
-- **Student 1:** Zivanka Nafisa Wongkaren — Date: 21/09/2025
-- **Student 2:** Kim Donguk — Date: 21/09/2025
-- **Student 3:** Jun Xu — Date: 21/09/2025
-- **Student 4:** Zhijing Qiu — Date: 21/09/2025
+Feel free to open issues or pull requests if you extend the pipelines or add new experiments.

@@ -1,83 +1,109 @@
-# Experiments Configuration (`experiments`)
+# Experiments & Profiles
 
-The `experiments` section of `assets/config.json` brings preprocessing, models, and datasets together. Each key corresponds to a notebook or script entry point (e.g. `q1_stock_movement`, `q2_credit_fraud`).
+Experiment orchestration now lives entirely inside the per-question profile files located at:
 
-## Common Fields
+- `assets/configs/q1/*.json`
+- `assets/configs/q2/*.json`
 
-| Field | Type | Description |
+This document explains how those profiles bundle dataset metadata, preprocessing pipelines, and model selections so the notebooks can iterate without extra Python code.
+
+---
+
+## Common Profile Fields
+
+| Field | Type | Purpose |
 | --- | --- | --- |
-| `dataset` | `string` | Name of the dataset in the `preprocessing` block (e.g. `stock_market`). |
-| `dataset_options` | `object` | Loader-specific options passed to the dataset helper (tickers, parse_dates, row limits, etc.). |
-| `split` | `object` | Evaluation split settings (currently `method: "time"` with `test_size`). |
-| `models` | `array` | Keys from the traditional `models` registry to evaluate. |
-| `neural_models` | `array` | Keys from `deep_models` (optional; used in Q2). |
-| `metrics` | `array` | Metric names computed in the notebook (supported: `accuracy`, `f1`). |
-| `ablation_axis` | `string` | Either `"features"` or `"preprocessing"`; determines how the ablation loop iterates. |
-| `ablation_sets_key` | `string` | Reference into the dataset’s preprocessing entry (`ablation_feature_sets` or `ablation_preprocessing_sets`). |
-| `feature_sets_fixed` | `array` | When `ablation_axis == "preprocessing"`, the fixed feature sets to apply. |
+| `dataset` | `string` | Name of the registered dataset loader (`"stock_market"` or `"credit_card_fraud"`). |
+| `dataset_options` | `object` | Loader arguments (tickers, parse_dates, row limits, etc.). |
+| `split` | `object` | Train/test split parameters (`{"method": "time", "test_size": 0.2}` by default). |
+| `target_column` | `string` | Name of the label column after preprocessing (e.g. `"target"` or `"Class"`). |
+| `drop_columns` | `array` | Columns to remove before modelling (timestamps, tickers, etc.). |
+| `models` | `array` | Traditional model keys from `assets/config.json["models"]`. |
+| `neural_models` | `array` | Optional PyTorch model keys from `assets/config.json["deep_models"]`. |
+| `metrics` | `array` | Metrics computed in the notebooks (currently `accuracy`, `f1`). |
+| `transforms` | `object` | Named transform configs (see [`preprocessing_config.md`](./preprocessing_config.md)). |
+| `pipeline` | `array` | Ordered list of transform names to execute. |
 
-### `dataset_options`
+### Flow inside the notebooks
 
-These are forwarded to dataset loaders (`load_stock_market_data`, `load_credit_card_data`). Examples:
+1. `load_pipeline_config(profile_path)` reads the JSON.
+2. `build_pipeline_from_config(cfg)` returns `(DFXPipeline, metadata)`, where `metadata` mirrors `target_column`, `drop_columns`, etc.
+3. The notebook:
+   - Loads raw data via the dataset key plus options,
+   - Applies `pipeline.apply_global`,
+   - Splits the frame according to `split`,
+   - Runs `fit_transform` / `transform`,
+   - Evaluates the configured models.
 
-- `tickers`: List of symbols to load (stock market).
-- `date_column`, `ticker_column`, `parse_dates`: CSV parsing controls.
-- `limit_per_ticker` / `limit_rows`: Trim dataset size for quick iterations.
+This means adding an experiment is as simple as dropping a new JSON file in the right directory.
 
-### `split`
+---
 
-Only time-based splits are currently supported:
+## Dataset Options
 
+Options are forwarded untouched to the dataset loader:
+
+- **Stock market** (`StockMarketDataset`):
+  - `tickers`, `date_column`, `ticker_column`, `parse_dates`, `limit_per_ticker`.
+- **Credit card fraud** (`CreditCardDataset`):
+  - `parse_dates`, `limit_rows` (useful for quick debugging).
+
+Unsupported keys are ignored, so you can extend the loaders without breaking existing configs.
+
+---
+
+## Example Profiles
+
+### Q1 – Baseline (`assets/configs/q1/P0_baseline.json`)
 ```json
-"split": {
-  "method": "time",
-  "test_size": 0.2
-}
-```
-
-Notebooks convert this into a chronological train/test split. Training data may then be balanced (if `class_balance` is configured) before scaling/outlier transforms.
-
-### `ablation_axis` and `ablation_sets_key`
-
-- `"features"` – Iterate over combinations defined in `preprocessing.<dataset>.ablation_feature_sets`.
-- `"preprocessing"` – Iterate over profile names listed in `preprocessing.<dataset>.ablation_preprocessing_sets` while using `feature_sets_fixed`.
-
-### `neural_models`
-
-When present, the experiment is expected to train or evaluate neural architectures defined in `deep_models`. The Q2 notebook:
-
-1. Calls `train_neural_profiles` to generate or reuse snapshots.
-2. Reloads those snapshots for inference.
-
-## Example: `q2_credit_fraud`
-
-```json
-"q2_credit_fraud": {
-  "dataset": "credit_card_fraud",
+{
+  "dataset": "stock_market",
   "dataset_options": {
-    "parse_dates": false,
-    "limit_rows": 200000
+    "tickers": ["aapl.us", "msft.us"],
+    "limit_per_ticker": 2000,
+    "parse_dates": true
   },
   "split": { "method": "time", "test_size": 0.2 },
-  "models": [
-    "logistic_regression",
-    "naive_bayes",
-    "decision_tree",
-    "svm",
-    "random_forest",
-    "gradient_boosting"
-  ],
-  "neural_models": ["mlp", "lstm", "transformer"],
+  "target_column": "target",
+  "drop_columns": ["Date", "Ticker"],
+  "models": ["logistic_regression", "svm", "random_forest"],
   "metrics": ["accuracy", "f1"],
-  "ablation_axis": "preprocessing",
-  "ablation_sets_key": "ablation_preprocessing_sets",
-  "feature_sets_fixed": ["baseline"]
+  "transforms": {
+    "sort":   { "type": "sorting", "stage": "global", "params": { "order": ["Ticker", "Date"] } },
+    "target": { "type": "target",  "stage": "global", "params": { "target_type": "direction", "groupby": ["Ticker"] } },
+    "scale":  { "type": "scaling", "stage": "train_test", "params": { "strategy": "standard" } }
+  },
+  "pipeline": ["sort", "target", "scale"]
 }
 ```
 
-This configuration instructs the notebook to:
+### Q2 – Neural-Friendly Variant (`assets/configs/q2/P1_robust_with_winsorize.json`)
+```json
+{
+  "dataset": "credit_card_fraud",
+  "dataset_options": { "limit_rows": 10000 },
+  "split": { "method": "time", "test_size": 0.2 },
+  "target_column": "Class",
+  "models": ["logistic_regression", "gradient_boosting"],
+  "neural_models": ["mlp", "residual_mlp"],
+  "metrics": ["accuracy", "f1"],
+  "transforms": {
+    "missing": { "type": "missing_values", "params": { "preset": "credit_card_fraud" } },
+    "clip":    { "type": "outlier_clip",    "params": { "method": "winsorize", "lower": 0.01, "upper": 0.99 } },
+    "scale":   { "type": "scaling",         "params": { "strategy": "robust" } }
+  },
+  "pipeline": ["missing", "clip", "scale"]
+}
+```
 
-1. Load the credit-card fraud data.
-2. Iterate over preprocessing profiles (`P0`–`P3`) defined in the dataset entry.
-3. Apply classical models plus neural baselines (loading snapshots if available).
-4. Report accuracy/F1 for each profile-model combination.
+---
+
+## Tips for Creating New Profiles
+
+1. **Start from an existing JSON**, duplicate it, and tweak transform parameters.
+2. **Validate transform names** against `TRANSFORM_REGISTRY` in `data_processings/transforms.py`.
+3. **Specify stages explicitly** when transforms should run only on training data (e.g., class balancing).
+4. **Record new profiles in version control**; the notebooks automatically pick up any `*.json` in the directory.
+5. **Document intent** inside the JSON using short comments with the `//` JSONC style if needed (the loader tolerates them), or track rationale in `codex.md`.
+
+By standardising on profile files, experiment reproducibility improves and collaborators can reuse pipelines without editing Python.
