@@ -99,20 +99,19 @@ class LendingClubDataset(BaseDataset):
     LENDING_CLUB_DIR = CONFIG_PATH.parent / "datasets" / "lending_club_loans"
 
     ACCEPTED_LOANS_PATH = LENDING_CLUB_DIR / "accepted_2007_to_2018q4.csv" /  "accepted_2007_to_2018q4.csv"
-    REJECTED_LOANS_PATH = LENDING_CLUB_DIR / "rejected_2007_to_2018q4.csv" / "rejected_2007_to_2018q4.csv"
 
-    def load(self, num_samples=None) -> pd.DataFrame:
-        if not self.DATA_PATH.exists():
-            raise FileNotFoundError(f"Lending club dataset not found: {self.DATA_PATH}")
+    def load(self, num_samples: int | None = None) -> pd.DataFrame:
+        if not self.LENDING_CLUB_DIR.exists():
+            raise FileNotFoundError(f"Lending club dataset not found: {self.LENDING_CLUB_DIR}")
+        elif not self.ACCEPTED_LOANS_PATH.exists():
+            raise FileNotFoundError(f"Lending club accepted loans dataset not found: {self.ACCEPTED_LOANS_PATH}")
         
-        if num_samples == None:
+        if num_samples == None: # Full Data
             df_accepted = pd.read_csv(self.ACCEPTED_LOANS_PATH)
-            df_rejected = pd.read_csv(self.REJECTED_LOANS_PATH)
-        else:  
+        else:  # Sections of Data for Development
             df_accepted = pd.read_csv(self.ACCEPTED_LOANS_PATH, nrows=num_samples)
-            df_rejected = pd.read_csv(self.ACCEPTED_LOANS_PATH, nrows=num_samples)
 
-        return df_accepted, df_rejected
+        return df_accepted
 
 # Backwards compatible helper functions -------------------------------------
 
