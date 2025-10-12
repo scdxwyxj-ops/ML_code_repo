@@ -246,7 +246,7 @@ def process_q3_features (df: pd.DataFrame | None = None) -> pd.DataFrame:
     df = df[df['loan_status'].isin(['Fully Paid', 'Charged Off'])]
 
     # Handle Debt to Income Ratio (if joint DTI NaN, use DTI)
-    df['dti_new'] = df['dti_joint'].fillna(df['dti'])
+    df['dti_mod'] = df['dti_joint'].fillna(df['dti'])
     df = df.drop(columns=['dti_joint', 'dti']) 
 
     # Handle other NaN types
@@ -255,11 +255,11 @@ def process_q3_features (df: pd.DataFrame | None = None) -> pd.DataFrame:
     # Evaluate Loan Income Ratio 
     df = df[df['annual_inc'] != 0].copy() # Drop 0 annual income for simplicity and insignificance in data
     df['loan_income_ratio'] = df['loan_amnt'] / df['annual_inc']
-    #df = df.drop(columns=['loan_amnt', 'annual_inc']) 
+    df = df.drop(columns=['loan_amnt', 'annual_inc']) 
 
     # Evaluate FICO mean from high and low FICO values
     df['fico_mean'] = 0.5*df['fico_range_high'] + 0.5*df['fico_range_low']
-    #df = df.drop(columns=['fico_range_high', 'fico_range_low'])
+    df = df.drop(columns=['fico_range_high', 'fico_range_low'])
 
     return df
 
