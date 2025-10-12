@@ -94,6 +94,25 @@ class CreditCardDataset(BaseDataset):
             df = df.head(int(limit_rows))
         return df.reset_index(drop=True)
 
+class LendingClubDataset(BaseDataset):
+
+    LENDING_CLUB_DIR = CONFIG_PATH.parent / "datasets" / "lending_club_loans"
+
+    ACCEPTED_LOANS_PATH = LENDING_CLUB_DIR / "accepted_2007_to_2018q4.csv" /  "accepted_2007_to_2018q4.csv"
+    REJECTED_LOANS_PATH = LENDING_CLUB_DIR / "rejected_2007_to_2018q4.csv" / "rejected_2007_to_2018q4.csv"
+
+    def load(self, num_samples=None) -> pd.DataFrame:
+        if not self.DATA_PATH.exists():
+            raise FileNotFoundError(f"Lending club dataset not found: {self.DATA_PATH}")
+        
+        if num_samples == None:
+            df_accepted = pd.read_csv(self.ACCEPTED_LOANS_PATH)
+            df_rejected = pd.read_csv(self.REJECTED_LOANS_PATH)
+        else:  
+            df_accepted = pd.read_csv(self.ACCEPTED_LOANS_PATH, nrows=num_samples)
+            df_rejected = pd.read_csv(self.ACCEPTED_LOANS_PATH, nrows=num_samples)
+
+        return df_accepted, df_rejected
 
 # Backwards compatible helper functions -------------------------------------
 
