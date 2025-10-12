@@ -106,7 +106,7 @@ class LendingClubDataset(BaseDataset):
         elif not self.ACCEPTED_LOANS_PATH.exists():
             raise FileNotFoundError(f"Lending club accepted loans dataset not found: {self.ACCEPTED_LOANS_PATH}")
 
-        if num_samples == None: # Full Data
+        if num_samples is None: # Full Data
             df_accepted = pd.read_csv(self.ACCEPTED_LOANS_PATH, low_memory=False)
 
         else:  # Sections of Data for Development

@@ -230,5 +230,39 @@ def _join_external_features(df: pd.DataFrame, config: Mapping[str, object]) -> p
     merged = merged.replace([np.inf, -np.inf], np.nan)
     return merged
 
+def process_q3_features (df: pd.DataFrame | None = None) -> pd.DataFrame:
+    if df is None:
+        raise ValueError("Dataframe not found!")
+    
+    retained_cols = ["loan_status", "loan_amnt", "annual_inc", 
+                     "fico_range_high", "fico_range_low", "dti_joint",
+                     "dti", "revol_util", "purpose", "home_ownership", 
+                     "emp_length", "term"]
 
-__all__ = ["apply_feature_steps"]
+    # Focus on relevant columns
+    df = df[retained_cols]
+    
+    # Preserve Fully Paid and Charged Off loan status types
+    df = df[df['loan_status'].isin(['Fully Paid', 'Charged Off'])]
+
+    # Handle Debt to Income Ratio (if joint DTI NaN, use DTI)
+    df['dti_new'] = df['dti_joint'].fillna(df['dti'])
+    df = df.drop(columns=['dti_joint', 'dti']) 
+
+    # Handle other NaN types
+    df = df.dropna()
+
+    # Evaluate Loan Income Ratio 
+    df = df[df['annual_inc'] != 0].copy() # Drop 0 annual income for simplicity and insignificance in data
+    df['loan_income_ratio'] = df['loan_amnt'] / df['annual_inc']
+    #df = df.drop(columns=['loan_amnt', 'annual_inc']) 
+
+    # Evaluate FICO mean from high and low FICO values
+    df['fico_mean'] = 0.5*df['fico_range_high'] + 0.5*df['fico_range_low']
+    #df = df.drop(columns=['fico_range_high', 'fico_range_low'])
+
+    return df
+
+
+
+__all__ = ["apply_feature_steps", "process_q3_features"]

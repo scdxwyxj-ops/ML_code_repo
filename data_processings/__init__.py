@@ -2,7 +2,7 @@
 
 from .config import CONFIG_PATH, get_section, load_config
 from .datasets import CreditCardDataset, StockMarketDataset, LendingClubDataset, load_credit_card_data, load_stock_market_data
-from .feature_engineering import apply_feature_steps
+from .feature_engineering import apply_feature_steps, process_q3_features
 from .missing_values import (
     DATASET_MISSING_VALUE_PRESETS,
     MissingValueConfig,
@@ -40,4 +40,5 @@ __all__ = [
     "DFXTransform",
     "TransformPipeline",
     "build_transform",
+    "process_q3_features",
 ]
