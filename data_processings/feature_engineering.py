@@ -234,32 +234,47 @@ def process_q3_features (df: pd.DataFrame | None = None) -> pd.DataFrame:
     if df is None:
         raise ValueError("Dataframe not found!")
     
-    retained_cols = ["loan_status", "loan_amnt", "annual_inc", 
+    retained_cols = ["loan_status", "loan_amnt", "annual_inc", "annual_inc_joint", 
                      "fico_range_high", "fico_range_low", "dti_joint",
                      "dti", "revol_util", "purpose", "home_ownership", 
-                     "emp_length", "term"]
+                     "emp_length", "term", "issue_d", "application_type", 
+                     "int_rate", "total_acc", "open_acc", "delinq_2yrs", 
+                     "acc_now_delinq", "acc_open_past_24mths", "verification_status", 
+                     "pub_rec"]
 
     # Focus on relevant columns
     df = df[retained_cols]
+
+    # Handle Loan Issue Date for temporal stability analysis
+    df['issue_d'] = pd.to_datetime(df['issue_d'], format='%b-%Y')
+    df['issue_year'] = df['issue_d'].dt.year
+    df['issue_month'] = df['issue_d'].dt.month
+    df = df.drop(columns=['issue_d'])
     
-    # Preserve Fully Paid and Charged Off loan status types
+    # Preserve Fully Paid and Charged Off loan status types (non-ongoing loans)
     df = df[df['loan_status'].isin(['Fully Paid', 'Charged Off'])]
 
     # Handle Debt to Income Ratio (if joint DTI NaN, use DTI)
     df['dti_mod'] = df['dti_joint'].fillna(df['dti'])
     df = df.drop(columns=['dti_joint', 'dti']) 
 
+    # Handle Annual Income (if joint AnnInc NaN, use AnnInc)
+    df['annual_inc_mod'] = df['annual_inc_joint'].fillna(df['annual_inc'])
+    df = df.drop(columns=['annual_inc_joint']) 
+
     # Handle other NaN types
     df = df.dropna()
 
     # Evaluate Loan Income Ratio 
-    df = df[df['annual_inc'] != 0].copy() # Drop 0 annual income for simplicity and insignificance in data
-    df['loan_income_ratio'] = df['loan_amnt'] / df['annual_inc']
+    median_income = df['annual_inc'].median()
+    df['loan_income_ratio'] = df['loan_amnt'] / df['annual_inc'].replace(0, median_income) # Use median income if 0
     df = df.drop(columns=['loan_amnt', 'annual_inc']) 
 
     # Evaluate FICO mean from high and low FICO values
     df['fico_mean'] = 0.5*df['fico_range_high'] + 0.5*df['fico_range_low']
     df = df.drop(columns=['fico_range_high', 'fico_range_low'])
+
+    df = df.reset_index(drop=True)
 
     return df
 
