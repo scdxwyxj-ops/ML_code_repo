@@ -11,6 +11,10 @@ from torch import Tensor, nn
 from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import DataLoader, TensorDataset
 from tqdm.auto import tqdm
+from torchsummary import summary
+import torch.optim as optim
+import contextlib
+import os
 
 
 @dataclass
@@ -123,6 +127,67 @@ class TabularTransformer(nn.Module):
         pooled = encoded.mean(dim=1)
         return self.output_head(pooled)
 
+class ClassifierNeuralNet(nn.Module):
+    def __init__(self, input_size, hidden_layer_neurons, output_size):
+        super(ClassifierNeuralNet, self).__init__()
+
+        self.layer1 = nn.Linear(input_size, hidden_layer_neurons)
+        self.relu = nn.ReLU()
+        self.layer2 = nn.Linear(hidden_layer_neurons, output_size)
+
+    def forward(self, x):
+        x = self.layer1(x)
+        x = self.relu(x)
+        x = self.layer2(x)
+
+        return x
+    
+class BinaryClassifier():
+
+    def __init__(self, input_size):
+        self.input_size = input_size
+        self.hidden_layer_neurons = 64
+        self.output_size = 2 # Binary
+
+        self.model = ClassifierNeuralNet(self.input_size, self.hidden_layer_neurons, self.output_size)
+
+        self.criterion = nn.CrossEntropyLoss()
+        self.optimizer = optim.Adam(self.model.parameters(), lr=0.001)
+
+    def fit(self, X_train, y_train, epochs=60):
+
+        for epoch in range(epochs):
+            outputs = self.model(X_train)
+            loss = self.criterion(outputs, y_train)
+
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+
+            epoch_name = 1+epoch
+
+            if (epoch_name) % 5 == 0:
+                print(f'Epoch [{epoch_name}/{epochs}], Loss: {loss.item():.4f}')
+
+    def predict(self, X_test):
+        with torch.no_grad():
+            preds = self.model(X_test)
+            preds = torch.argmax(preds, dim=1)
+
+        preds = preds.numpy()
+
+        return preds
+    
+    def print_model_summary(self, folder_path, file_name):
+        os.makedirs(folder_path, exists_ok=True)
+        file_name = f"{file_name}.txt"
+        file_path = os.path.join(folder_path, file_name)
+
+        with open(file_path, "w") as txt_file:
+            with contextlib.redirect_stdout(txt_file):
+                summary(self.model, input_size=(self.input_size,))
+
+        print(f"Neural Network Details Saved in {file_path}!")
 
 def build_neural_model(
     key: str,
