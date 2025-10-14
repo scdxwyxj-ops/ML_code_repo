@@ -243,9 +243,10 @@ def process_q3_features (df: pd.DataFrame | None = None) -> pd.DataFrame:
                      "pub_rec"]
 
     # Focus on relevant columns
-    df = df[retained_cols]
+    df = df[retained_cols].copy()
 
     # Handle Loan Issue Date for temporal stability analysis
+    df = df.dropna(subset=['issue_d'])
     df['issue_d'] = pd.to_datetime(df['issue_d'], format='%b-%Y')
     df['issue_year'] = df['issue_d'].dt.year
     df['issue_month'] = df['issue_d'].dt.month
@@ -263,7 +264,7 @@ def process_q3_features (df: pd.DataFrame | None = None) -> pd.DataFrame:
     df = df.drop(columns=['annual_inc_joint']) 
 
     # Handle other NaN types
-    df = df.dropna()
+    df = df.dropna() 
 
     # Evaluate Loan Income Ratio 
     median_income = df['annual_inc'].median()

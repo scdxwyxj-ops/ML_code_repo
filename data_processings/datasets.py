@@ -7,8 +7,11 @@ from pathlib import Path
 from typing import Mapping
 
 import pandas as pd
+import os
+import math
 
 from .config import CONFIG_PATH
+from .feature_engineering import process_q3_features
 
 
 class BaseDataset(ABC):
@@ -99,20 +102,56 @@ class LendingClubDataset(BaseDataset):
     LENDING_CLUB_DIR = CONFIG_PATH.parent / "datasets" / "lending_club_loans"
 
     ACCEPTED_LOANS_PATH = LENDING_CLUB_DIR / "accepted_2007_to_2018q4.csv" /  "accepted_2007_to_2018q4.csv"
+    
+    def build_yearly_samples(self, chunk_size, samples_per_year, folder_path, issue_date_col='issue_d'):
 
-    def load(self, num_samples: int | None = None) -> pd.DataFrame:
         if not self.LENDING_CLUB_DIR.exists():
             raise FileNotFoundError(f"Lending club dataset not found: {self.LENDING_CLUB_DIR}")
         elif not self.ACCEPTED_LOANS_PATH.exists():
             raise FileNotFoundError(f"Lending club accepted loans dataset not found: {self.ACCEPTED_LOANS_PATH}")
 
-        if num_samples is None: # Full Data
-            df_accepted = pd.read_csv(self.ACCEPTED_LOANS_PATH, low_memory=False)
+        yearly_samples = {}
+        issue_year_col = 'issue_year'
+        self.folder_path = folder_path
 
-        else:  # Sections of Data for Development
-            df_accepted = pd.read_csv(self.ACCEPTED_LOANS_PATH, nrows=num_samples, low_memory=False)
+        os.makedirs(folder_path, exist_ok=True)
 
-        return df_accepted
+        for i, chunk in enumerate(pd.read_csv(self.ACCEPTED_LOANS_PATH, chunksize=chunk_size), start=1):
+
+            print(f"Chunk {i} in progress!")
+
+            chunk_processed = process_q3_features(chunk)
+
+            for year, val in chunk_processed.groupby(issue_year_col):
+                if year not in yearly_samples:
+                    yearly_samples[year] = val
+                
+                else:
+                    yearly_samples[year] = pd.concat([yearly_samples[year], val])
+                
+                if len(yearly_samples[year]) > samples_per_year:
+                    yearly_samples[year] = yearly_samples[year].sample(n=samples_per_year, random_state=10)
+        
+        for year, df in yearly_samples.items():
+            file_name = f"lending_club_{year}.pkl"
+
+            file_path = os.path.join(folder_path, file_name)
+
+            if os.path.exists(file_path):
+                os.remove(file_path)
+
+            df.to_pickle(file_path)
+
+            print(f"{file_name} saved! in {folder_path}!")
+    
+    def load(self, year: str) -> pd.DataFrame:
+        file_name = f"lending_club_{year}.pkl"
+        file_path = os.path.join(self.folder_path, file_name)
+
+        df = pd.read_pickle(file_path)
+
+        return df
+
 
 # Backwards compatible helper functions -------------------------------------
 
