@@ -112,6 +112,8 @@ class LendingClubDataset(BaseDataset):
 
         yearly_samples = {}
         issue_year_col = 'issue_year'
+        result_col = 'loan_status'
+        samples_per_class = int(round(samples_per_year / 2))
         self.folder_path = folder_path
 
         os.makedirs(folder_path, exist_ok=True)
@@ -124,14 +126,21 @@ class LendingClubDataset(BaseDataset):
 
             for year, val in chunk_processed.groupby(issue_year_col):
                 if year not in yearly_samples:
-                    yearly_samples[year] = val
+                    yearly_samples[year] = pd.DataFrame(columns=chunk_processed.columns)
                 
-                else:
-                    yearly_samples[year] = pd.concat([yearly_samples[year], val])
+                for credit_risk_class, cls_df in val.groupby(result_col):
+
+                    num_cls_samples_now = (yearly_samples[year][result_col] == credit_risk_class).sum()
+
+                    samples_to_go = samples_per_class - num_cls_samples_now
+
+                    if samples_to_go <=0:
+                        continue
+
+                    samples = cls_df.sample(n=min(len(cls_df), samples_to_go), random_state=10)
+
+                    yearly_samples[year] = pd.concat([yearly_samples[year], samples])
                 
-                if len(yearly_samples[year]) > samples_per_year:
-                    yearly_samples[year] = yearly_samples[year].sample(n=samples_per_year, random_state=10)
-        
         for year, df in yearly_samples.items():
             file_name = f"lending_club_{year}.pkl"
 
