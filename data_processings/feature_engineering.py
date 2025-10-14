@@ -236,7 +236,7 @@ def process_q3_features (df: pd.DataFrame | None = None) -> pd.DataFrame:
     
     retained_cols = ["loan_status", "loan_amnt", "annual_inc", "annual_inc_joint", 
                      "fico_range_high", "fico_range_low", "dti_joint",
-                     "dti", "revol_util", "purpose", "home_ownership", 
+                     "dti", "revol_util", "home_ownership", 
                      "emp_length", "term", "issue_d", "application_type", 
                      "int_rate", "total_acc", "open_acc", "delinq_2yrs", 
                      "acc_now_delinq", "acc_open_past_24mths", "verification_status", 
@@ -274,6 +274,9 @@ def process_q3_features (df: pd.DataFrame | None = None) -> pd.DataFrame:
     # Evaluate FICO mean from high and low FICO values
     df['fico_mean'] = 0.5*df['fico_range_high'] + 0.5*df['fico_range_low']
     df = df.drop(columns=['fico_range_high', 'fico_range_low'])
+
+    # Employment Length to integer type
+    df['emp_length'] = df['emp_length'].str.extract('(\d+)').fillna(0).astype(int)
 
     df = df.reset_index(drop=True)
 
