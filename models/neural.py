@@ -146,15 +146,16 @@ class BinaryClassifier():
 
     def __init__(self, input_size):
         self.input_size = input_size
-        self.hidden_layer_neurons = 64
+        self.hidden_layer_neurons = 32
         self.output_size = 2 # Binary
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-        self.model = ClassifierNeuralNet(self.input_size, self.hidden_layer_neurons, self.output_size)
+        self.model = ClassifierNeuralNet(self.input_size, self.hidden_layer_neurons, self.output_size).to(self.device)
 
         self.criterion = nn.CrossEntropyLoss()
         self.optimizer = optim.Adam(self.model.parameters(), lr=0.001)
 
-    def fit(self, X_train, y_train, epochs=60):
+    def fit(self, X_train, y_train, epochs=30):
 
         for epoch in range(epochs):
             outputs = self.model(X_train)
