@@ -275,13 +275,8 @@ def process_q3_features (df: pd.DataFrame | None = None) -> pd.DataFrame:
     df['fico_mean'] = 0.5*df['fico_range_high'] + 0.5*df['fico_range_low']
     df = df.drop(columns=['fico_range_high', 'fico_range_low'])
 
-    # Employment Length to integer type
-    df['emp_length'] = df['emp_length'].str.extract('(\d+)').fillna(0).astype(int)
-
     df = df.reset_index(drop=True)
 
     return df
-
-
 
 __all__ = ["apply_feature_steps", "process_q3_features"]
