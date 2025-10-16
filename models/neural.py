@@ -16,6 +16,7 @@ from sklearn.model_selection import train_test_split
 import torch.optim as optim
 import contextlib
 import os
+import copy
 
 
 @dataclass
@@ -136,11 +137,11 @@ class ClassifierNeuralNet(nn.Module):
         self.relu1 = nn.ReLU()
         self.dropout1 = nn.Dropout(p=dropout_perc)
 
-        self.layer2 = nn.Linear(hidden_layer_neurons, hidden_layer_neurons)
+        self.layer2 = nn.Linear(hidden_layer_neurons, hidden_layer_neurons-32)
         self.relu2 = nn.ReLU()
         self.dropout2 = nn.Dropout(p=dropout_perc)
 
-        self.layer3 = nn.Linear(hidden_layer_neurons, output_size)
+        self.layer3 = nn.Linear(hidden_layer_neurons-32, output_size)
 
     def forward(self, x):
         x = self.layer1(x)
@@ -157,21 +158,18 @@ class BinaryClassifier():
 
     def __init__(self, input_size):
         self.input_size = input_size
-        self.hidden_layer_neurons = 128
+        self.hidden_layer_neurons = 64
         self.output_size = 2 # Binary
-        self.dropout_percent = 0.3
+        self.dropout_percent = 0.1
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         self.model = ClassifierNeuralNet(self.input_size, self.hidden_layer_neurons, self.output_size, self.dropout_percent).to(self.device)
 
         self.criterion = nn.CrossEntropyLoss()
-        self.optimizer = optim.Adam(self.model.parameters(), lr=0.005, amsgrad=True)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=0.0001, amsgrad=True)
 
-    def fit(self, X_train, y_train, epochs=30, val_split=0.2, batch_size=128):
-        patience = 10
+    def fit(self, X_train, y_train, epochs=30, val_split=0.2):
         best_valid_loss = 100000.0
-        batch_loss = 0.0
-        ctr = 0
 
         if val_split > 0:
             X_train, X_valid, y_train, y_valid = train_test_split(
@@ -179,37 +177,30 @@ class BinaryClassifier():
             )
         else:
             X_valid, y_valid = None, None
-        
-        train_dataset = TensorDataset(X_train, y_train)
-        train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-
-        valid_dataset = TensorDataset(X_valid, y_valid)
-        valid_dataloader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False)
 
         for epoch in range(epochs):
 
-            for X_train_batch, y_train_batch in train_dataloader:
-                self.model.train()
-                self.optimizer.zero_grad()
-                outputs = self.model(X_train)
-                loss = self.criterion(outputs, y_train)
-                loss.backward()
-                self.optimizer.step()
-                batch_loss += loss.item() * X_train_batch.size(0)
-            
-            training_loss = batch_loss / len(train_dataloader)
+            self.model.train()
+            self.optimizer.zero_grad()
+
+            outputs = self.model(X_train)
+
+            loss = self.criterion(outputs, y_train)
+            loss.backward()
+            self.optimizer.step()
+
+            training_loss = loss.item()
 
             if X_valid is not None:
                 self.model.eval()
-                valid_loss = 0.0
 
                 with torch.no_grad():
-                    for X_valid_batch, y_valid_batch in valid_dataloader:
-                        valid_outputs = self.model(X_valid_batch)
-                        val_loss = self.criterion(valid_outputs, y_valid_batch)
-                        valid_loss += val_loss.item() * X_valid_batch.size(0)
-                
-                valid_loss = valid_loss / len(valid_dataloader.dataset)    
+                    valid_outputs = self.model(X_valid)
+                    val_loss = self.criterion(valid_outputs, y_valid)
+                    valid_loss = val_loss.item()
+
+                self.model.train()
+
             else:
                 valid_loss = None
 
@@ -221,17 +212,12 @@ class BinaryClassifier():
                 else:
                     print(f'Epoch [{epoch_name}/{epochs}], Training Loss: {training_loss:.4f}, Validation Loss: {valid_loss:.4f}')
             
-            if valid_loss.item() < best_valid_loss:  
-                best_valid_loss = valid_loss.item()
-                ctr = 0      
-                best_model_state = self.model
-            else: 
-                ctr += 1
-                if ctr >= patience:
-                    print("Model Has Not Improved! Training Stopped Early!")
-                    break
+            if valid_loss < best_valid_loss:  
+                best_valid_loss = valid_loss
+                
+                best_model_state = copy.deepcopy(self.model.state_dict())
 
-        self.model = best_model_state
+        self.model.load_state_dict(best_model_state)
 
     def predict(self, X_test):
 

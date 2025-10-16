@@ -4,17 +4,17 @@
             Linear-1                   [-1, 64]           1,024
               ReLU-2                   [-1, 64]               0
            Dropout-3                   [-1, 64]               0
-            Linear-4                   [-1, 64]           4,160
-              ReLU-5                   [-1, 64]               0
-           Dropout-6                   [-1, 64]               0
-            Linear-7                    [-1, 2]             130
+            Linear-4                   [-1, 32]           2,080
+              ReLU-5                   [-1, 32]               0
+           Dropout-6                   [-1, 32]               0
+            Linear-7                    [-1, 2]              66
 ================================================================
-Total params: 5,314
-Trainable params: 5,314
+Total params: 3,170
+Trainable params: 3,170
 Non-trainable params: 0
 ----------------------------------------------------------------
 Input size (MB): 0.00
 Forward/backward pass size (MB): 0.00
-Params size (MB): 0.02
-Estimated Total Size (MB): 0.02
+Params size (MB): 0.01
+Estimated Total Size (MB): 0.01
 ----------------------------------------------------------------
