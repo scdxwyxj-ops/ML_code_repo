@@ -5,7 +5,8 @@ It provides a configuration-driven pipeline for:
 - **Q1** &ndash; Stock price movement ablation studies across feature engineering variants.
 - **Q2** &ndash; Credit-card fraud detection comparing classical ML and neural baselines.
 - **Q3** &ndash; Temporal stability comparison of different ML-based credit risk models.
- maximizing Sharpe ratios?
+- **Q4** &ndash; Stock-market realized volatility forecasting and ML-driven portfolio backtesting.
+- **Q5** &ndash; Portfolio construction benchmarking Markowitz optimisation against ML strategies.
 
 All preprocessing, feature engineering, and model choices are declarative; notebooks simply load JSON profiles and execute the shared transform stack. 
 
@@ -15,7 +16,7 @@ All preprocessing, feature engineering, and model choices are declarative; noteb
 - **Composable transforms** – `data_processings.transforms.DFXTransform` and `DFXPipeline` enable reusable, stage-aware preprocessing that mirrors PyTorch-style transforms.
 - **Config-first experiments** – Each ablation profile lives in `assets/configs/q1|q2/*.json`, defining dataset options, transform order, and model lists without editing Python.
 - **Dataset abstractions** – `data_processings.datasets.BaseDataset` is subclassed for stock-market and credit-card loaders with consistent option handling.
-- **Progress-aware notebooks** – `scripts/q1.ipynb` and `scripts/q2.ipynb` emit clear logs for classical evaluation, neural training, and neural inference; neural checkpoints are cached under `assets/snapshots`. `scripts/q3.ipynb` produce result details as printed in the file while providing indepth information in `assets/q3_data`. 
+- **Progress-aware experiment scripts** – `scripts/q1.ipynb` and `scripts/q2.ipynb` emit clear logs for classical evaluation, neural training, and neural inference; neural checkpoints are cached under `assets/snapshots`. `scripts/q3.ipynb` surfaces temporal stability outputs inline and archives supporting tables in `assets/q3_data`. `scripts/q4.py` automates the volatility forecasting workflow plus portfolio backtesting, exporting artefacts to `results/` and `portfolio_results/`. `scripts/q5.ipynb` walks through Markowitz vs ML portfolio comparisons with narrative commentary.
 - **Documentation bundle** – `assets/documentation/` captures environment setup, config schema, and experiment workflows for quick onboarding.
 
 ---
@@ -38,6 +39,10 @@ All preprocessing, feature engineering, and model choices are declarative; noteb
    - `scripts/q1.ipynb` (stock ablations)  
    - `scripts/q2.ipynb` (credit fraud classical + neural)
    - `scripts/q3.ipynb` (temporal stability of credit risk models)
+   - `scripts/q5.ipynb` (Markowitz vs ML portfolio construction)
+
+   Execute command-line workflows from the same folder when required:
+   - `python q4.py` (volatility forecasting and portfolio backtests)
 
    Each notebook derives `MAIN_PATH = Path(os.getcwd()).parent` or equivalent, so execute them while your working directory is `scripts/`.
 
@@ -71,7 +76,7 @@ For deeper architectural context and recent changes, see `codex.md`, which is up
 ## Repository At A Glance
 - `data_processings/` – Transform base classes, registry, dataset loaders, scaling/outlier utilities, and pipeline builder.
 - `models/` – Traditional model registry plus PyTorch tabular models.
-- `scripts/` – Dataset downloader and experiment notebooks (`q1.ipynb`, `q2.ipynb`).
+- `scripts/` – Dataset downloader, experiment notebooks (`q1.ipynb`, `q2.ipynb`, `q3.ipynb`, `q5.ipynb`), and the Q4 volatility pipeline (`q4.py`).
 - `assets/`
   - `config.json` – shared presets.
   - `configs/q1|q2` – ablation profiles.
