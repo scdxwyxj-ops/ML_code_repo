@@ -1,5 +1,6 @@
 assets/datasets/*
 assets/q3_data/yearly_samples/*
 !assets/datasets/.gitkeep
+!assets/q3_data/.gitkeep
 codex.md
 example.py
