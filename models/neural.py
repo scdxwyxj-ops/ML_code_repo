@@ -1,7 +1,8 @@
-"""Neural network models and training utilities for tabular datasets."""
+'''Neural network models and training utilities for tabular datasets.'''
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Iterable, Mapping, Tuple
@@ -11,10 +12,6 @@ from torch import Tensor, nn
 from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import DataLoader, TensorDataset
 from tqdm.auto import tqdm
-from torchsummary import summary
-import torch.optim as optim
-import contextlib
-import os
 
 
 @dataclass
@@ -87,6 +84,73 @@ class ResidualMLP(nn.Module):
         return self.head(x)
 
 
+class PositionalEncoding(nn.Module):
+    def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 5000):
+        super().__init__()
+        self.dropout = nn.Dropout(p=dropout)
+
+        position = torch.arange(max_len).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model))
+        pe = torch.zeros(max_len, 1, d_model)
+        pe[:, 0, 0::2] = torch.sin(position * div_term)
+        pe[:, 0, 1::2] = torch.cos(position * div_term)
+        self.register_buffer('pe', pe)
+
+    def forward(self, x: Tensor) -> Tensor:
+        x = x + self.pe[:x.size(0)]
+        return self.dropout(x)
+
+class SequenceTransformer(nn.Module):
+    def __init__(
+        self,
+        input_dim: int,
+        d_model: int,
+        nhead: int,
+        num_layers: int,
+        dim_feedforward: int,
+        dropout: float,
+        num_classes: int = 2,
+    ) -> None:
+        super().__init__()
+        self.model_type = 'Transformer'
+        self.pos_encoder = PositionalEncoding(d_model, dropout)
+        self.input_proj = nn.Linear(input_dim, d_model)
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=d_model,
+            nhead=nhead,
+            dim_feedforward=dim_feedforward,
+            dropout=dropout,
+            batch_first=False, # Expects (seq_len, batch_size, d_model)
+            activation="gelu",
+        )
+        self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+        self.d_model = d_model
+        self.output_head = nn.Linear(d_model, num_classes)
+
+    def forward(self, src: Tensor) -> Tensor:
+        src = self.input_proj(src) * math.sqrt(self.d_model)
+        src = src.permute(1, 0, 2) # [seq_len, batch_size, d_model]
+        src = self.pos_encoder(src)
+        output = self.transformer_encoder(src)
+        output = output.mean(dim=0) # Aggregate over sequence length
+        return self.output_head(output)
+
+
+class TabularLSTM(nn.Module):
+    def __init__(self, input_dim: int, hidden_dim: int, num_layers: int, dropout: float, num_classes: int = 2) -> None:
+        super().__init__()
+        self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True, dropout=dropout)
+        self.head = nn.Linear(hidden_dim, num_classes)
+
+    def forward(self, x: Tensor) -> Tensor:
+        # x is (batch_size, num_features), needs to be (batch_size, seq_len, input_dim)
+        # For tabular data, we can treat seq_len as 1 and input_dim as num_features
+        x = x.unsqueeze(1)
+        lstm_out, _ = self.lstm(x)
+        # Get the output of the last time step
+        last_time_step_out = lstm_out[:, -1, :]
+        return self.head(last_time_step_out)
+
 class TabularTransformer(nn.Module):
     def __init__(
         self,
@@ -127,68 +191,6 @@ class TabularTransformer(nn.Module):
         pooled = encoded.mean(dim=1)
         return self.output_head(pooled)
 
-class ClassifierNeuralNet(nn.Module):
-    def __init__(self, input_size, hidden_layer_neurons, output_size):
-        super(ClassifierNeuralNet, self).__init__()
-
-        self.layer1 = nn.Linear(input_size, hidden_layer_neurons)
-        self.relu = nn.ReLU()
-        self.layer2 = nn.Linear(hidden_layer_neurons, output_size)
-
-    def forward(self, x):
-        x = self.layer1(x)
-        x = self.relu(x)
-        x = self.layer2(x)
-
-        return x
-    
-class BinaryClassifier():
-
-    def __init__(self, input_size):
-        self.input_size = input_size
-        self.hidden_layer_neurons = 32
-        self.output_size = 2 # Binary
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-        self.model = ClassifierNeuralNet(self.input_size, self.hidden_layer_neurons, self.output_size).to(self.device)
-
-        self.criterion = nn.CrossEntropyLoss()
-        self.optimizer = optim.Adam(self.model.parameters(), lr=0.001)
-
-    def fit(self, X_train, y_train, epochs=30):
-
-        for epoch in range(epochs):
-            outputs = self.model(X_train)
-            loss = self.criterion(outputs, y_train)
-
-            self.optimizer.zero_grad()
-            loss.backward()
-            self.optimizer.step()
-
-            epoch_name = 1+epoch
-
-            if (epoch_name) % 5 == 0:
-                print(f'Epoch [{epoch_name}/{epochs}], Loss: {loss.item():.4f}')
-
-    def predict(self, X_test):
-        with torch.no_grad():
-            preds = self.model(X_test)
-            preds = torch.argmax(preds, dim=1)
-
-        preds = preds.numpy()
-
-        return preds
-    
-    def print_model_summary(self, folder_path, file_name):
-        os.makedirs(folder_path, exists_ok=True)
-        file_name = f"{file_name}.txt"
-        file_path = os.path.join(folder_path, file_name)
-
-        with open(file_path, "w") as txt_file:
-            with contextlib.redirect_stdout(txt_file):
-                summary(self.model, input_size=(self.input_size,))
-
-        print(f"Neural Network Details Saved in {file_path}!")
 
 def build_neural_model(
     key: str,
@@ -218,6 +220,26 @@ def build_neural_model(
         num_blocks = int(params.get("num_blocks", 3))
         dropout = float(params.get("dropout", 0.2))
         model = ResidualMLP(input_dim, hidden_dim, num_blocks, dropout, num_classes)
+    elif model_cfg.get("class") == "TabularLSTM":
+        hidden_dim = int(params.get("hidden_dim", 128))
+        num_layers = int(params.get("num_layers", 2))
+        dropout = float(params.get("dropout", 0.2))
+        model = TabularLSTM(input_dim, hidden_dim, num_layers, dropout, num_classes)
+    elif model_cfg.get("class") == "SequenceTransformer":
+        d_model = int(params.get("d_model", 64))
+        nhead = int(params.get("nhead", 4))
+        num_layers = int(params.get("num_layers", 2))
+        dim_feedforward = int(params.get("dim_feedforward", 128))
+        dropout = float(params.get("dropout", 0.3))
+        model = SequenceTransformer(
+            input_dim,
+            d_model=d_model,
+            nhead=nhead,
+            num_layers=num_layers,
+            dim_feedforward=dim_feedforward,
+            dropout=dropout,
+            num_classes=num_classes,
+        )
     elif model_cfg.get("class") == "TabularTransformer":
         d_model = int(params.get("d_model", 64))
         nhead = int(params.get("nhead", 8))
@@ -346,8 +368,11 @@ def predict_proba(model: nn.Module, loader: DataLoader) -> Tensor:
 
 __all__ = [
     "TabularMLP",
+    "ResidualMLP",
     "TabularLSTM",
     "TabularTransformer",
+    "PositionalEncoding",
+    "SequenceTransformer",
     "TrainingConfig",
     "build_dataloader",
     "build_neural_model",
