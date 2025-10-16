@@ -4,6 +4,7 @@ Repository for COMP90049 (Introduction to Machine Learning) Assignment 2, Grou
 It provides a configuration-driven pipeline for:
 - **Q1** &ndash; Stock price movement ablation studies across feature engineering variants.
 - **Q2** &ndash; Credit-card fraud detection comparing classical ML and neural baselines.
+- **Q5** &ndash; Do ML-based stock selection strategies outperform traditional portfolio optimization methods in maximizing Sharpe ratios?
 
 All preprocessing, feature engineering, and model choices are declarative; notebooks simply load JSON profiles and execute the shared transform stack.
 
