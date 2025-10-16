@@ -12,6 +12,7 @@ from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import DataLoader, TensorDataset
 from tqdm.auto import tqdm
 from torchsummary import summary
+from sklearn.model_selection import train_test_split
 import torch.optim as optim
 import contextlib
 import os
@@ -128,17 +129,27 @@ class TabularTransformer(nn.Module):
         return self.output_head(pooled)
 
 class ClassifierNeuralNet(nn.Module):
-    def __init__(self, input_size, hidden_layer_neurons, output_size):
+    def __init__(self, input_size, hidden_layer_neurons, output_size, dropout_perc=0.2):
         super(ClassifierNeuralNet, self).__init__()
 
         self.layer1 = nn.Linear(input_size, hidden_layer_neurons)
-        self.relu = nn.ReLU()
-        self.layer2 = nn.Linear(hidden_layer_neurons, output_size)
+        self.relu1 = nn.ReLU()
+        self.dropout1 = nn.Dropout(p=dropout_perc)
+
+        self.layer2 = nn.Linear(hidden_layer_neurons, hidden_layer_neurons)
+        self.relu2 = nn.ReLU()
+        self.dropout2 = nn.Dropout(p=dropout_perc)
+
+        self.layer3 = nn.Linear(hidden_layer_neurons, output_size)
 
     def forward(self, x):
         x = self.layer1(x)
-        x = self.relu(x)
+        x = self.relu1(x)
+        x = self.dropout1(x)
         x = self.layer2(x)
+        x = self.relu2(x)
+        x = self.dropout2(x)
+        x = self.layer3(x)
 
         return x
     
@@ -146,31 +157,86 @@ class BinaryClassifier():
 
     def __init__(self, input_size):
         self.input_size = input_size
-        self.hidden_layer_neurons = 32
+        self.hidden_layer_neurons = 128
         self.output_size = 2 # Binary
+        self.dropout_percent = 0.3
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-        self.model = ClassifierNeuralNet(self.input_size, self.hidden_layer_neurons, self.output_size).to(self.device)
+        self.model = ClassifierNeuralNet(self.input_size, self.hidden_layer_neurons, self.output_size, self.dropout_percent).to(self.device)
 
         self.criterion = nn.CrossEntropyLoss()
-        self.optimizer = optim.Adam(self.model.parameters(), lr=0.001)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=0.005, amsgrad=True)
 
-    def fit(self, X_train, y_train, epochs=30):
+    def fit(self, X_train, y_train, epochs=30, val_split=0.2, batch_size=128):
+        patience = 10
+        best_valid_loss = 100000.0
+        batch_loss = 0.0
+        ctr = 0
+
+        if val_split > 0:
+            X_train, X_valid, y_train, y_valid = train_test_split(
+                X_train, y_train, test_size=val_split, random_state=10, shuffle=True
+            )
+        else:
+            X_valid, y_valid = None, None
+        
+        train_dataset = TensorDataset(X_train, y_train)
+        train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+
+        valid_dataset = TensorDataset(X_valid, y_valid)
+        valid_dataloader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False)
 
         for epoch in range(epochs):
-            outputs = self.model(X_train)
-            loss = self.criterion(outputs, y_train)
 
-            self.optimizer.zero_grad()
-            loss.backward()
-            self.optimizer.step()
+            for X_train_batch, y_train_batch in train_dataloader:
+                self.model.train()
+                self.optimizer.zero_grad()
+                outputs = self.model(X_train)
+                loss = self.criterion(outputs, y_train)
+                loss.backward()
+                self.optimizer.step()
+                batch_loss += loss.item() * X_train_batch.size(0)
+            
+            training_loss = batch_loss / len(train_dataloader)
+
+            if X_valid is not None:
+                self.model.eval()
+                valid_loss = 0.0
+
+                with torch.no_grad():
+                    for X_valid_batch, y_valid_batch in valid_dataloader:
+                        valid_outputs = self.model(X_valid_batch)
+                        val_loss = self.criterion(valid_outputs, y_valid_batch)
+                        valid_loss += val_loss.item() * X_valid_batch.size(0)
+                
+                valid_loss = valid_loss / len(valid_dataloader.dataset)    
+            else:
+                valid_loss = None
 
             epoch_name = 1+epoch
 
             if (epoch_name) % 5 == 0:
-                print(f'Epoch [{epoch_name}/{epochs}], Loss: {loss.item():.4f}')
+                if valid_loss is None:
+                    print(f'Epoch [{epoch_name}/{epochs}], Training Loss: {training_loss:.4f}')
+                else:
+                    print(f'Epoch [{epoch_name}/{epochs}], Training Loss: {training_loss:.4f}, Validation Loss: {valid_loss:.4f}')
+            
+            if valid_loss.item() < best_valid_loss:  
+                best_valid_loss = valid_loss.item()
+                ctr = 0      
+                best_model_state = self.model
+            else: 
+                ctr += 1
+                if ctr >= patience:
+                    print("Model Has Not Improved! Training Stopped Early!")
+                    break
+
+        self.model = best_model_state
 
     def predict(self, X_test):
+
+        self.model.eval()
+
         with torch.no_grad():
             preds = self.model(X_test)
             preds = torch.argmax(preds, dim=1)
@@ -180,7 +246,7 @@ class BinaryClassifier():
         return preds
     
     def print_model_summary(self, folder_path, file_name):
-        os.makedirs(folder_path, exists_ok=True)
+        os.makedirs(folder_path, exist_ok=True)
         file_name = f"{file_name}.txt"
         file_path = os.path.join(folder_path, file_name)
 

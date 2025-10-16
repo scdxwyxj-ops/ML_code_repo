@@ -103,7 +103,7 @@ class LendingClubDataset(BaseDataset):
 
     ACCEPTED_LOANS_PATH = LENDING_CLUB_DIR / "accepted_2007_to_2018q4.csv" /  "accepted_2007_to_2018q4.csv"
     
-    def build_yearly_samples(self, chunk_size, samples_per_year, folder_path, issue_date_col='issue_d'):
+    def build_yearly_samples(self, chunk_size, samples_per_year, folder_path):
 
         if not self.LENDING_CLUB_DIR.exists():
             raise FileNotFoundError(f"Lending club dataset not found: {self.LENDING_CLUB_DIR}")
