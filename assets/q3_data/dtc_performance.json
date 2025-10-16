@@ -1,27 +1,27 @@
 {
     "Low Risk": {
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1-score": 0.0,
+        "precision": 0.5564610011641443,
+        "recall": 0.5736,
+        "f1-score": 0.5649005318101241,
         "support": 7500.0
     },
     "High Risk": {
-        "precision": 0.5,
-        "recall": 1.0,
-        "f1-score": 0.6666666666666666,
+        "precision": 0.5600495253817581,
+        "recall": 0.5428,
+        "f1-score": 0.5512898639041235,
         "support": 7500.0
     },
-    "accuracy": 0.5,
+    "accuracy": 0.5582,
     "macro avg": {
-        "precision": 0.25,
-        "recall": 0.5,
-        "f1-score": 0.3333333333333333,
+        "precision": 0.5582552632729512,
+        "recall": 0.5582,
+        "f1-score": 0.5580951978571238,
         "support": 15000.0
     },
     "weighted avg": {
-        "precision": 0.25,
-        "recall": 0.5,
-        "f1-score": 0.3333333333333333,
+        "precision": 0.5582552632729512,
+        "recall": 0.5582,
+        "f1-score": 0.5580951978571238,
         "support": 15000.0
     }
 }

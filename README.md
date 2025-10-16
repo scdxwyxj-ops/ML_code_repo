@@ -4,9 +4,10 @@ Repository for COMP90049 (Introduction to Machine Learning) Assignment 2, Grou
 It provides a configuration-driven pipeline for:
 - **Q1** &ndash; Stock price movement ablation studies across feature engineering variants.
 - **Q2** &ndash; Credit-card fraud detection comparing classical ML and neural baselines.
+- **Q3** &ndash; Temporal stability comparison of different ML-based credit risk models.
  maximizing Sharpe ratios?
 
-All preprocessing, feature engineering, and model choices are declarative; notebooks simply load JSON profiles and execute the shared transform stack.
+All preprocessing, feature engineering, and model choices are declarative; notebooks simply load JSON profiles and execute the shared transform stack. 
 
 ---
 
@@ -14,7 +15,7 @@ All preprocessing, feature engineering, and model choices are declarative; noteb
 - **Composable transforms** – `data_processings.transforms.DFXTransform` and `DFXPipeline` enable reusable, stage-aware preprocessing that mirrors PyTorch-style transforms.
 - **Config-first experiments** – Each ablation profile lives in `assets/configs/q1|q2/*.json`, defining dataset options, transform order, and model lists without editing Python.
 - **Dataset abstractions** – `data_processings.datasets.BaseDataset` is subclassed for stock-market and credit-card loaders with consistent option handling.
-- **Progress-aware notebooks** – `scripts/q1.ipynb` and `scripts/q2.ipynb` emit clear logs for classical evaluation, neural training, and neural inference; neural checkpoints are cached under `assets/snapshots`.
+- **Progress-aware notebooks** – `scripts/q1.ipynb` and `scripts/q2.ipynb` emit clear logs for classical evaluation, neural training, and neural inference; neural checkpoints are cached under `assets/snapshots`. `scripts/q3.ipynb` produce result details as printed in the file while providing indepth information in `assets/q3_data`. 
 - **Documentation bundle** – `assets/documentation/` captures environment setup, config schema, and experiment workflows for quick onboarding.
 
 ---
@@ -36,8 +37,9 @@ All preprocessing, feature engineering, and model choices are declarative; noteb
 4. **Run the notebooks from `scripts/`**
    - `scripts/q1.ipynb` (stock ablations)  
    - `scripts/q2.ipynb` (credit fraud classical + neural)
+   - `scripts/q3.ipynb` (temporal stability of credit risk models)
 
-   Each notebook derives `MAIN_PATH = Path(os.getcwd()).parent`, so execute them while your working directory is `scripts/`.
+   Each notebook derives `MAIN_PATH = Path(os.getcwd()).parent` or equivalent, so execute them while your working directory is `scripts/`.
 
 ---
 
@@ -75,6 +77,7 @@ For deeper architectural context and recent changes, see `codex.md`, which is up
   - `configs/q1|q2` – ablation profiles.
   - `datasets/` – local copies of Kaggle datasets (ignored by Git).
   - `snapshots/` – neural checkpoints and training histories.
+  - `q3_data/` – outcomes and details of q3 credit risk models. 
 
 ---
 
