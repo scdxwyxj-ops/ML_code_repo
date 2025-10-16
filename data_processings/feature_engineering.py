@@ -236,9 +236,9 @@ def process_q3_features (df: pd.DataFrame | None = None) -> pd.DataFrame:
     
     retained_cols = ["loan_status", "loan_amnt", "annual_inc", "annual_inc_joint", 
                      "fico_range_high", "fico_range_low", "dti_joint",
-                     "dti", "revol_util", "home_ownership", 
+                     "dti", "revol_util",  
                      "emp_length", "term", "issue_d", "application_type", 
-                     "int_rate", "total_acc", "open_acc", "delinq_2yrs", 
+                     "int_rate", "delinq_2yrs", 
                      "acc_now_delinq", "acc_open_past_24mths", "verification_status", 
                      "pub_rec"]
 
