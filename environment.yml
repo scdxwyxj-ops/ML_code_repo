@@ -10,5 +10,6 @@ dependencies:
   - matplotlib
   - pandas
   - scikit-learn
+  - seaborn
   - pip:
     - kaggle
