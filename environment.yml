@@ -13,3 +13,4 @@ dependencies:
   - seaborn
   - pip:
     - kaggle
+    - torch
